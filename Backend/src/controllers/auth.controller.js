@@ -1,8 +1,9 @@
 import userModel from "../models/user.model.js";
+import config from "../config/config.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const generateToken = (userId) => {
+const generateToken = (req,res,userId) => {
     const tokenResponse = jwt.sign({ _id: userId }, config.JWT_SECRET, { expiresIn: "7d" });
     res.cookie("token", tokenResponse, {
         httpOnly: true,
@@ -27,7 +28,7 @@ export const registerController = async (req, res, next) => {
 
         const user = await userModel.create({ email, mobile, fullName, password, role });
 
-        generateToken(user._id);
+        generateToken(req,res,user._id);
 
         res.status(200).json({ message: "User registered successfully", user });
 
@@ -53,7 +54,7 @@ export const loginController = async (req, res, next) => {
             return res.status(401).json({ message: "Invalid password" });
         }
 
-        generateToken(user._id);
+        generateToken(req,res,user._id);
 
         res.status(200).json({ message: "User logged in successfully", user });
     } catch (error) {
