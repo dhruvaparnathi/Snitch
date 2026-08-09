@@ -33,8 +33,13 @@ export const useAuth = () => {
         }
     }
 
+    const handleGoogleAuth = () => {
+        window.location.href = "/api/auth/google";
+    }
+
     return {
         handleRegister,
         handleLogin,
+        handleGoogleAuth,
     }
 }

@@ -61,7 +61,7 @@ function InputField({ id, name, type = 'text', placeholder, value, onChange, ico
 /* ── Login page ──────────────────────────────────────────────────────── */
 export default function Login() {
   const navigate = useNavigate();
-  const { handleLogin } = useAuth();
+  const { handleLogin, handleGoogleAuth } = useAuth();
   const { loading, error } = useSelector(s => s.auth);
 
   const [form, setForm] = useState({ email: '', password: '' });
@@ -172,6 +172,7 @@ export default function Login() {
 
           {/* Google */}
           <button type="button"
+            onClick={handleGoogleAuth}
             className="w-full flex items-center justify-center gap-3 py-2.5 rounded-lg border text-sm font-medium transition-colors duration-200"
             style={{ borderColor: 'rgba(76,66,106,0.5)', background: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}>
             <GoogleIcon />Continue with Google

@@ -9,8 +9,8 @@ const userSchema = new mongoose.Schema({
     },
     mobile: {
         type: String,
-        required: true,
-        unique: true,
+        required: false,
+        sparse: true,
     },
     fullName: {
         type: String,
@@ -18,7 +18,11 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: true,
+        required: false,
+    },
+    googleId: {
+        type: String,
+        default: null,
     },
     role: {
         type: String,
@@ -29,15 +33,16 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
-});
+}, { timestamps: true });
 
 userSchema.pre("save", async function() {
-    if(this.isModified("password")) {
+    if (this.password && this.isModified("password")) {
         this.password = await bcrypt.hash(this.password, 10);
     }
 });
 
 userSchema.methods.comparePassword = function(password) {
+    if (!this.password) return false;
     return bcrypt.compare(password, this.password);
 }
 

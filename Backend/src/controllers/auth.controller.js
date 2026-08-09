@@ -3,11 +3,11 @@ import config from "../config/config.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const generateToken = (req,res,userId) => {
+export const generateToken = (req, res, userId) => {
     const tokenResponse = jwt.sign({ _id: userId }, config.JWT_SECRET, { expiresIn: "7d" });
     res.cookie("token", tokenResponse, {
         httpOnly: true,
-        secure: true,
+        secure: config.NODE_ENV === "production",
         sameSite: "strict",
         maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -28,7 +28,7 @@ export const registerController = async (req, res, next) => {
 
         const user = await userModel.create({ email, mobile, fullName, password, role });
 
-        generateToken(req,res,user._id);
+        generateToken(req, res, user._id);
 
         res.status(200).json({ message: "User registered successfully", user });
 
@@ -49,15 +49,34 @@ export const loginController = async (req, res, next) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        if (!user.password) {
+            return res.status(400).json({ message: "This account was created with Google. Please sign in with Google." });
+        }
+
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if(!isPasswordValid) {
             return res.status(401).json({ message: "Invalid password" });
         }
 
-        generateToken(req,res,user._id);
+        generateToken(req, res, user._id);
 
         res.status(200).json({ message: "User logged in successfully", user });
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+}
+
+export const googleCallbackController = async (req, res, next) => {
+    try {
+        if (!req.user) {
+            return res.redirect("http://localhost:5174/login?error=GoogleAuthFailed");
+        }
+        generateToken(req, res, req.user._id);
+
+        // Redirect user back to Frontend after successful Google login
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5174";
+        return res.redirect(`${frontendUrl}/`);
+    } catch (error) {
+        next(error);
     }
 }
