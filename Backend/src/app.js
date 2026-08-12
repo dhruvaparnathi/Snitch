@@ -59,8 +59,10 @@ passport.use(new GoogleStrategy({
 
 // Routes
 import authRouter from "./routes/auth.route.js";
+import productRouter from "./routes/product.route.js";
 
 app.use("/api/auth", authRouter);
+app.use("/api/product", productRouter);
 
 app.get("/", (req, res) => {
     res.status(200).json({ message: "Server is running" });

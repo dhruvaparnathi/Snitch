@@ -3,8 +3,8 @@ import config from "../config/config.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-export const generateToken = (req, res, userId) => {
-    const tokenResponse = jwt.sign({ _id: userId }, config.JWT_SECRET, { expiresIn: "7d" });
+export const generateToken = (req, res, userId, userRole) => {
+    const tokenResponse = jwt.sign({ _id: userId, role: userRole }, config.JWT_SECRET, { expiresIn: "7d" });
     res.cookie("token", tokenResponse, {
         httpOnly: true,
         secure: config.NODE_ENV === "production",
@@ -28,7 +28,7 @@ export const registerController = async (req, res, next) => {
 
         const user = await userModel.create({ email, mobile, fullName, password, role });
 
-        generateToken(req, res, user._id);
+        generateToken(req, res, user._id, user.role);
 
         res.status(200).json({ message: "User registered successfully", user });
 
@@ -58,7 +58,7 @@ export const loginController = async (req, res, next) => {
             return res.status(401).json({ message: "Invalid password" });
         }
 
-        generateToken(req, res, user._id);
+        generateToken(req, res, user._id, user.role);
 
         res.status(200).json({ message: "User logged in successfully", user });
     } catch (error) {
@@ -71,7 +71,7 @@ export const googleCallbackController = async (req, res, next) => {
         if (!req.user) {
             return res.redirect("http://localhost:5174/login?error=GoogleAuthFailed");
         }
-        generateToken(req, res, req.user._id);
+        generateToken(req, res, req.user._id, req.user.role);
 
         // Redirect user back to Frontend after successful Google login
         const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5174";
