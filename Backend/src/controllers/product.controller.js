@@ -14,6 +14,11 @@ export const createProductController = async (req, res, next) => {
             req.files.map(file => uploadFile({ buffer: file.buffer, fileName: file.originalname }))
         )
 
+        const formattedImages = images.map(img => ({
+            url: img.url || img.toString(),
+            alt: name || "Product image"
+        }));
+
         const product = await productModel.create({
             title: name,
             description,
@@ -21,13 +26,27 @@ export const createProductController = async (req, res, next) => {
                 amount: priceAmount,
                 currency: priceCurrency || "INR",
             },
-            stock:stockQuantity,
-            images,
+            stock: stockQuantity,
+            images: formattedImages,
+            Images: formattedImages,
             seller: seller._id,
         });
 
-        res.status(200).json({ message: "Product created successfully", product });
+        return res.status(200).json({ message: "Product created successfully", product });
 
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+
+export const getAllProductController = async (req, res, next) => {
+    try {
+        const products = await productModel.find().populate("seller", "username");
+        if (!products) {
+            return res.status(404).json({ message: "Products not found" });
+        }
+        return res.status(200).json({ message: "Products fetched successfully", products });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
