@@ -1,5 +1,35 @@
 import mongoose from "mongoose";
 
+const variantSchema = new mongoose.Schema({
+    images: [{
+        url: {
+            type: String,
+        },
+        alt: {
+            type: String,
+        }
+    }],
+    stock: {
+        type: Number,
+        default: 0,
+    },
+    attributes: {
+        type: Map,
+        of: String
+    },
+    prices: {
+        amount: {
+            type: Number,
+        },
+        currency: {
+            type: String,
+            enum: ["INR", "USD", "EUR", "GBP", "JPY", "CAD"],
+            default: "INR",
+            toUpperCase: true,
+        }
+    }
+}, { _id: false });
+
 const productSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -22,35 +52,7 @@ const productSchema = new mongoose.Schema({
             toUpperCase: true,
         }
     },
-    variants: {
-        images: [{
-            url: {
-                type: String,
-                required: true
-            }
-        }],
-        stock: {
-            type: Number,
-            default: 0,
-        },
-        attributes: {
-            type: Map,
-            of: String
-        },
-        prices: {
-            amount: {
-                type: Number,
-                required: true
-            },
-            currency: {
-                type: String,
-                required: true,
-                enum: ["INR", "USD", "EUR", "GBP", "JPY", "CAD"],
-                default: "INR",
-                toUpperCase: true,
-            }
-        }
-    },
+    variants: [variantSchema],
     stock: {
         type: Number,
         required: true,
@@ -60,7 +62,7 @@ const productSchema = new mongoose.Schema({
         ref: "User",
         required: true,
     },
-    Images:[
+    Images: [
         {
             url: {
                 type: String,
@@ -72,9 +74,7 @@ const productSchema = new mongoose.Schema({
             },
         }
     ]
-},{ timestamps:true });
-
+}, { timestamps: true });
 
 const productModel = mongoose.model("Product", productSchema);
 export default productModel;
-

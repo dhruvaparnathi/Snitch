@@ -39,6 +39,33 @@ html, body {
   overflow-x: hidden;
 }
 
+/* ── Global Interactive Cursors ─────────────────────────────────────────── */
+button,
+[role="button"],
+a,
+select,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+.units-pill,
+.cursor-pointer,
+.swiper-button-next,
+.swiper-button-prev,
+.pixel-grid {
+  cursor: pointer !important;
+}
+
+button:disabled,
+[aria-disabled="true"],
+input:disabled,
+select:disabled,
+button[disabled] {
+  cursor: not-allowed !important;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

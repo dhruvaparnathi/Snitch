@@ -26,6 +26,9 @@ import { useLenis } from "../assets/useLenis";
 import { useProduct } from "../Features/product/hook/useProduct";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import BuyerLoader from "../Components/loaders/BuyerLoader.jsx";
+import { CardSkeleton } from "../Components/loaders/BentoSkeleton.jsx";
+import PixelArtCanvas from "../Components/common/PixelArtCanvas.jsx";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -107,6 +110,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [toastMessage, setToastMessage] = useState(null);
+  const [showLoader, setShowLoader] = useState(true);
 
   useEffect(() => {
     handleGetAllProducts().catch(() => {});
@@ -214,6 +218,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F5EBE6] text-black font-body selection:bg-[#FF5500] selection:text-white relative">
+      
+      {/* Full-Screen Awwwards Buyer Loader */}
+      {showLoader && <BuyerLoader onComplete={() => setShowLoader(false)} duration={1.6} />}
       
       {/* Toast Alert */}
       {toastMessage && (

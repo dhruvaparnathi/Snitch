@@ -19,6 +19,8 @@ import {
 import { useLenis } from "../../../assets/useLenis";
 import { useProduct } from "../hook/useProduct";
 import gsap from "gsap";
+import SellerLoader from "../../../Components/loaders/SellerLoader.jsx";
+import { TableRowSkeleton } from "../../../Components/loaders/BentoSkeleton.jsx";
 
 export default function Dashboard() {
   useLenis();
@@ -26,6 +28,7 @@ export default function Dashboard() {
   const { products, loading, handleGetSellerProducts } = useProduct();
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState(null);
+  const [showInitialLoader, setShowInitialLoader] = useState(true);
 
   useEffect(() => {
     handleGetSellerProducts().catch(() => {});
@@ -59,6 +62,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#F5EBE6] text-black font-body selection:bg-[#FF5500] selection:text-white relative p-4 sm:p-6 lg:p-8">
+      {/* Full-Screen Awwwards Seller Terminal Loader */}
+      {showInitialLoader && (
+        <SellerLoader onComplete={() => setShowInitialLoader(false)} duration={1.5} />
+      )}
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white animate-bounce font-heading font-bold text-sm">
@@ -182,8 +189,23 @@ export default function Dashboard() {
             </div>
 
             {loading ? (
-              <div className="text-center py-16 font-mono font-bold text-sm">
-                Fetching Snitch telemetry...
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b-2 border-black text-black font-extrabold uppercase">
+                      <th className="pb-3 pl-2">Product Unit</th>
+                      <th className="pb-3">Category</th>
+                      <th className="pb-3">Price</th>
+                      <th className="pb-3">Stock Quantity</th>
+                      <th className="pb-3 pr-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y-2 border-b-2 border-black/20 divide-black/10">
+                    <TableRowSkeleton />
+                    <TableRowSkeleton />
+                    <TableRowSkeleton />
+                  </tbody>
+                </table>
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="text-center py-16 text-black/60">

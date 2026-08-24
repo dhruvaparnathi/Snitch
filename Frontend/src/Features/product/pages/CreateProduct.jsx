@@ -17,6 +17,7 @@ import {
 import { useLenis } from "../../../assets/useLenis";
 import { useProduct } from "../hook/useProduct";
 import gsap from "gsap";
+import SellerLoader from "../../../Components/loaders/SellerLoader.jsx";
 
 export default function CreateProduct() {
   useLenis();
@@ -204,6 +205,9 @@ export default function CreateProduct() {
 
   return (
     <div className="min-h-screen bg-[#F5EBE6] text-black font-body selection:bg-[#FF5500] selection:text-white relative p-4 sm:p-6 lg:p-8">
+      {/* High-Velocity Seller Publishing Loader */}
+      {loading && <SellerLoader duration={2.2} subtitle="REGISTERING UNIT WITH SNITCH MESH..." />}
+      
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white animate-bounce font-heading font-bold text-sm">

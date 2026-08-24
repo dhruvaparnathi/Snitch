@@ -15,13 +15,17 @@ import {
   Minus,
   X,
   Globe,
-  Share2
+  Share2,
+  Layers,
+  Sliders,
+  Check
 } from "lucide-react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import { useLenis } from "../../../assets/useLenis";
 import { useProduct } from "../hook/useProduct";
 import gsap from "gsap";
+import BuyerLoader from "../../../Components/loaders/BuyerLoader.jsx";
+
+const FALLBACK_DEFAULT_IMG = "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1200&q=80";
 
 // Mock Fallback Units Data for instant matching
 const STATIC_UNITS_DATA = [
@@ -39,6 +43,18 @@ const STATIC_UNITS_DATA = [
       { label: "Bath & Kitchen", val: "Private Ensuite" },
       { label: "Access Control", val: "Smart Keyless NFC" },
       { label: "Climate", val: "A+++ Dual Inverter AC" },
+    ],
+    variants: [
+      {
+        attributes: [{ key: "Floor", val: "2nd Floor" }, { key: "View", val: "City Park" }],
+        prices: { amount: 640, currency: "EUR" },
+        stock: 5
+      },
+      {
+        attributes: [{ key: "Floor", val: "4th Floor" }, { key: "View", val: "Sunset Skyline" }],
+        prices: { amount: 670, currency: "EUR" },
+        stock: 3
+      }
     ],
     Images: [
       { url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1200&q=80", alt: "Kick Unit View" },
@@ -59,6 +75,18 @@ const STATIC_UNITS_DATA = [
       { label: "Kitchen", val: "Induction & Fridge" },
       { label: "Security", val: "24/7 CCTV & Keyless Entry" },
       { label: "Laundry", val: "In-Building Smart Hub" },
+    ],
+    variants: [
+      {
+        attributes: [{ key: "Terrace", val: "East Balcony" }, { key: "Layout", val: "Studio Plus" }],
+        prices: { amount: 680, currency: "EUR" },
+        stock: 3
+      },
+      {
+        attributes: [{ key: "Terrace", val: "Panoramic Sun-Deck" }, { key: "Layout", val: "Suite Deluxe" }],
+        prices: { amount: 720, currency: "EUR" },
+        stock: 2
+      }
     ],
     Images: [
       { url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80", alt: "Boost Unit Room" },
@@ -120,6 +148,7 @@ export default function ProductDetails() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
 
   useEffect(() => {
     async function loadProduct() {
@@ -139,7 +168,6 @@ export default function ProductDetails() {
         if (res && res.product) {
           setProduct(res.product);
         } else {
-          // Fallback to first unit if not found
           setProduct(STATIC_UNITS_DATA[0]);
         }
       } catch (err) {
@@ -151,32 +179,111 @@ export default function ProductDetails() {
     }
 
     loadProduct();
-
-    gsap.from(".detail-anim", {
-      y: 30,
-      opacity: 0,
-      stagger: 0.08,
-      duration: 0.8,
-      ease: "power3.out",
-      clearProps: "all"
-    });
   }, [id]);
+
+  useEffect(() => {
+    if (!loading && product) {
+      const targets = document.querySelectorAll(".detail-anim");
+      if (targets.length > 0) {
+        gsap.from(targets, {
+          y: 25,
+          opacity: 0,
+          stagger: 0.08,
+          duration: 0.7,
+          ease: "power3.out",
+          clearProps: "all"
+        });
+      }
+    }
+  }, [loading, product]);
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  if (loading || !product) {
+    return <BuyerLoader duration={1.2} />;
+  }
+
+  const title = product.title || product.name || "Snitch Product Unit";
+  const category = product.category || "Living Units";
+  const description = product.description || "Authentic Snitch architectural artifact engineered with high-velocity precision.";
+  const basePriceAmount = product.price?.amount || product.priceAmount || 0;
+  const basePriceCurrency = product.price?.currency || product.priceCurrency || "INR";
+  const baseStock = product.stock ?? product.stockQuantity ?? 10;
+
+  // Normalize Product Images safely
+  const rawImages = (product.Images && product.Images.length > 0)
+    ? product.Images.map((img) => typeof img === "string" ? img : img.url).filter(Boolean)
+    : (product.images && product.images.length > 0)
+    ? product.images.map((img) => typeof img === "string" ? img : img.url).filter(Boolean)
+    : [FALLBACK_DEFAULT_IMG];
+
+  // Normalize Variants Array
+  const rawVariants = Array.isArray(product.variants)
+    ? product.variants
+    : (product.variants ? [product.variants] : []);
+
+  const normalizedVariants = rawVariants.map((v, idx) => {
+    let attrs = [];
+    if (Array.isArray(v.attributes)) {
+      attrs = v.attributes;
+    } else if (v.attributes instanceof Map) {
+      attrs = Array.from(v.attributes.entries()).map(([k, val]) => ({ key: k, val }));
+    } else if (v.attributes && typeof v.attributes === "object") {
+      attrs = Object.entries(v.attributes).map(([k, val]) => ({ key: k, val }));
+    }
+
+    const vPrice = v.prices?.amount !== undefined ? v.prices.amount : (v.priceAmount !== undefined ? v.priceAmount : basePriceAmount);
+    const vCurr = v.prices?.currency || v.priceCurrency || basePriceCurrency;
+    const vStock = v.stock !== undefined ? v.stock : baseStock;
+    const vImg = v.images?.[0]?.url || (v.previewUrl && !v.previewUrl.startsWith("blob:") ? v.previewUrl : null);
+
+    return {
+      id: v._id || `variant-${idx}`,
+      label: attrs.map((a) => `${a.key ? a.key + ": " : ""}${a.val}`).filter(Boolean).join(" • ") || `Variant #${idx + 1}`,
+      shortLabel: attrs.map((a) => a.val || a.key).filter(Boolean).join(" / ") || `Option #${idx + 1}`,
+      attributes: attrs,
+      priceAmount: vPrice,
+      priceCurrency: vCurr,
+      stock: vStock,
+      image: vImg
+    };
+  });
+
+  const hasVariants = normalizedVariants.length > 0;
+  const activeVariant = hasVariants ? normalizedVariants[selectedVariantIdx] : null;
+
+  // Active Price, Stock & Image based on Variant
+  const currentPrice = activeVariant ? activeVariant.priceAmount : basePriceAmount;
+  const currentCurrency = activeVariant ? activeVariant.priceCurrency : basePriceCurrency;
+  const currentStock = activeVariant ? activeVariant.stock : baseStock;
+
+  // Primary display image
+  const displayImage = (activeVariant?.image && !activeVariant.image.startsWith("blob:"))
+    ? activeVariant.image
+    : (rawImages[activeImageIdx] || rawImages[0] || FALLBACK_DEFAULT_IMG);
+
+  const handleSelectVariant = (idx) => {
+    setSelectedVariantIdx(idx);
+    const v = normalizedVariants[idx];
+    if (v && v.image && rawImages.includes(v.image)) {
+      setActiveImageIdx(rawImages.indexOf(v.image));
+    } else if (idx < rawImages.length) {
+      setActiveImageIdx(idx);
+    }
+  };
+
   const handleAddToCart = () => {
-    if (!product) return;
-    const priceVal = product.price?.amount || product.priceAmount || 0;
     const item = {
-      id: product._id || product.id,
-      name: product.title || product.name,
-      price: `${product.price?.currency || "EUR"} ${priceVal}`,
-      priceVal: priceVal,
-      image: product.Images?.[0]?.url || product.images?.[0]?.url || product.images?.[0] || "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=800&q=80",
-      quantity: quantity
+      id: `${product._id || product.id}${activeVariant ? `-${activeVariant.id}` : ''}`,
+      name: activeVariant ? `${title} (${activeVariant.shortLabel})` : title,
+      price: `${currentCurrency} ${currentPrice}`,
+      priceVal: Number(currentPrice) || 0,
+      image: displayImage,
+      quantity: quantity,
+      variant: activeVariant ? activeVariant.label : null
     };
 
     setCart((prev) => {
@@ -195,29 +302,6 @@ export default function ProductDetails() {
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.priceVal * item.quantity), 0);
-
-  if (loading || !product) {
-    return (
-      <div className="min-h-screen bg-[#F5EBE6] text-black font-body flex items-center justify-center p-8">
-        <div className="bg-white border-2 border-black rounded-[32px] p-8 text-center shadow-[4px_4px_0px_#000000]">
-          <div className="w-10 h-10 border-4 border-black border-t-[#FF5500] rounded-full animate-spin mx-auto mb-4" />
-          <h2 className="font-heading font-black text-xl">Loading Snitch Artifact...</h2>
-        </div>
-      </div>
-    );
-  }
-
-  const title = product.title || product.name || "Snitch Product Unit";
-  const category = product.category || "Living Units";
-  const description = product.description || "Authentic Snitch architectural artifact engineered with high-velocity precision.";
-  const priceAmount = product.price?.amount || product.priceAmount || 0;
-  const priceCurrency = product.price?.currency || product.priceCurrency || "EUR";
-  const stock = product.stock ?? product.stockQuantity ?? 10;
-  const images = (product.Images && product.Images.length > 0)
-    ? product.Images.map((img) => typeof img === "string" ? img : img.url)
-    : (product.images && product.images.length > 0)
-    ? product.images.map((img) => typeof img === "string" ? img : img.url)
-    : ["https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1200&q=80"];
 
   return (
     <div className="min-h-screen bg-[#F5EBE6] text-black font-body selection:bg-[#FF5500] selection:text-white relative p-4 sm:p-6 lg:p-8">
@@ -242,7 +326,7 @@ export default function ProductDetails() {
                 </div>
                 <button
                   onClick={() => setIsCartOpen(false)}
-                  className="p-2 rounded-xl bg-[#F5EBE6] hover:bg-black hover:text-white transition-colors border border-black"
+                  className="p-2 rounded-xl bg-[#F5EBE6] hover:bg-black hover:text-white transition-colors border border-black cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -257,15 +341,23 @@ export default function ProductDetails() {
                 ) : (
                   cart.map((item) => (
                     <div key={item.id} className="p-3.5 rounded-2xl bg-[#F5EBE6] border-2 border-black flex items-center gap-3">
-                      <img src={item.image} alt={item.name} className="w-16 h-16 rounded-xl object-cover border border-black" />
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        onError={(e) => { e.currentTarget.src = FALLBACK_DEFAULT_IMG; }}
+                        className="w-16 h-16 rounded-xl object-cover border border-black"
+                      />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-heading font-extrabold text-sm truncate">{item.name}</h4>
+                        {item.variant && (
+                          <span className="text-[10px] font-mono text-black/60 block truncate">{item.variant}</span>
+                        )}
                         <p className="text-xs font-mono font-bold text-[#FF5500]">{item.price}</p>
                         <p className="text-[11px] font-semibold text-black/70">Qty: {item.quantity}</p>
                       </div>
                       <button
                         onClick={() => removeFromCart(item.id)}
-                        className="text-xs p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        className="text-xs p-2 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -278,7 +370,7 @@ export default function ProductDetails() {
             <div className="pt-6 border-t-2 border-black">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-mono font-bold text-sm text-black/70">TOTAL AMOUNT</span>
-                <span className="font-heading font-black text-2xl">{priceCurrency} {cartTotal.toLocaleString()}</span>
+                <span className="font-heading font-black text-2xl">{currentCurrency} {cartTotal.toLocaleString()}</span>
               </div>
               <button
                 onClick={() => {
@@ -288,7 +380,7 @@ export default function ProductDetails() {
                   setIsCartOpen(false);
                 }}
                 disabled={cart.length === 0}
-                className="w-full py-4 rounded-2xl bg-[#00C853] text-black font-extrabold text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-40"
+                className="w-full py-4 rounded-2xl bg-[#00C853] text-black font-extrabold text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-40 cursor-pointer"
               >
                 PROCEED TO CHECKOUT ↗
               </button>
@@ -347,7 +439,7 @@ export default function ProductDetails() {
             </div>
 
             <span className="px-3 py-1 rounded-full font-mono text-[10px] font-bold bg-[#00C853] text-black border border-black">
-              {stock} UNITS IN STOCK
+              {currentStock} UNITS IN STOCK
             </span>
           </div>
 
@@ -360,8 +452,9 @@ export default function ProductDetails() {
               {/* Primary Image Viewport */}
               <div className="h-[380px] sm:h-[480px] rounded-[32px] overflow-hidden border-2 border-black shadow-[4px_4px_0px_#000000] relative bg-white">
                 <img
-                  src={images[activeImageIdx] || images[0]}
+                  src={displayImage}
                   alt={title}
+                  onError={(e) => { e.currentTarget.src = rawImages[0] || FALLBACK_DEFAULT_IMG; }}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 left-4 bg-black text-white px-3 py-1.5 rounded-full font-mono text-xs font-bold border border-white">
@@ -369,27 +462,38 @@ export default function ProductDetails() {
                 </div>
               </div>
 
-              {/* Thumbnails Bar */}
-              {images.length > 1 && (
-                <div className="flex items-center gap-3 overflow-x-auto pb-2">
-                  {images.map((imgUrl, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveImageIdx(idx)}
-                      className={`w-24 h-20 rounded-2xl overflow-hidden border-2 flex-shrink-0 transition-all ${
-                        activeImageIdx === idx
-                          ? "border-black shadow-[3px_3px_0px_#FF5500] scale-105"
-                          : "border-black/40 opacity-70 hover:opacity-100"
-                      }`}
-                    >
-                      <img src={imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
+              {/* Thumbnails Bar with Adequate Padding & Non-Clipping Container */}
+              {rawImages.length > 1 && (
+                <div className="p-2.5 rounded-2xl bg-white border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center gap-3 overflow-x-auto">
+                  {rawImages.map((imgUrl, idx) => {
+                    const isSelected = activeImageIdx === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setActiveImageIdx(idx);
+                        }}
+                        className={`w-24 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all cursor-pointer p-0.5 ${
+                          isSelected
+                            ? "border-black bg-[#FF5500] shadow-[2px_2px_0px_#000000]"
+                            : "border-black/30 opacity-70 hover:opacity-100 bg-white"
+                        }`}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Thumbnail ${idx + 1}`}
+                          onError={(e) => { e.currentTarget.src = FALLBACK_DEFAULT_IMG; }}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
               {/* Bento Feature Badges */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
                 <div className="bg-[#1677FF] text-black p-4 rounded-2xl border-2 border-black shadow-[2px_2px_0px_#000000]">
                   <ShieldCheck className="w-5 h-5 mb-1.5" />
                   <div className="font-heading font-black text-sm">100% Certified</div>
@@ -427,19 +531,70 @@ export default function ProductDetails() {
                   {/* Price Banner */}
                   <div className="bg-[#F5EBE6] p-4 rounded-2xl border-2 border-black mb-6 flex items-baseline justify-between">
                     <div>
-                      <span className="text-[10px] font-mono font-bold text-black/70 block uppercase">PRICE / MONTH</span>
+                      <span className="text-[10px] font-mono font-bold text-black/70 block uppercase">PRICE</span>
                       <span className="font-heading font-black text-3xl text-[#FF5500]">
-                        {priceCurrency} {priceAmount.toLocaleString()}
+                        {currentCurrency} {Number(currentPrice).toLocaleString()}
                       </span>
                     </div>
                     <span className="font-mono text-xs font-bold text-black bg-[#FFD600] px-3 py-1 rounded-full border border-black">
-                      IN STOCK
+                      {currentStock > 0 ? `${currentStock} IN STOCK` : "OUT OF STOCK"}
                     </span>
                   </div>
 
                   <p className="text-sm font-semibold text-black/80 leading-relaxed mb-6">
                     {description}
                   </p>
+
+                  {/* Dynamic Interactive Product Variants Selector */}
+                  {hasVariants && (
+                    <div className="mb-6 p-4 rounded-2xl bg-[#F5EBE6] border-2 border-black">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-heading font-black text-xs text-black uppercase flex items-center gap-1.5">
+                          <Layers className="w-4 h-4 text-[#1677FF]" />
+                          <span>SELECT VARIANT / OPTION:</span>
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-[#FF5500]">
+                          {normalizedVariants.length} Options Available
+                        </span>
+                      </div>
+
+                      {/* Variant Option Pills */}
+                      <div className="flex flex-wrap gap-2">
+                        {normalizedVariants.map((v, idx) => {
+                          const isSelected = selectedVariantIdx === idx;
+                          return (
+                            <button
+                              key={v.id}
+                              type="button"
+                              onClick={() => handleSelectVariant(idx)}
+                              className={`px-4 py-2.5 rounded-xl font-heading font-extrabold text-xs border-2 border-black transition-all flex items-center gap-2 cursor-pointer ${
+                                isSelected
+                                  ? "bg-black text-white shadow-[2px_2px_0px_#FF5500] scale-[1.02]"
+                                  : "bg-white text-black hover:bg-black/5"
+                              }`}
+                            >
+                              <span>{v.shortLabel}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-[#00E676]" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Active Variant Attributes Breakdown */}
+                      {activeVariant && activeVariant.attributes.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-black/10 flex flex-wrap gap-2">
+                          {activeVariant.attributes.map((attr, aIdx) => (
+                            <span
+                              key={aIdx}
+                              className="px-2.5 py-1 rounded-lg bg-white border border-black/30 font-mono text-[10px] font-bold text-black"
+                            >
+                              <span className="text-black/60">{attr.key}:</span> {attr.val}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Quantity Selector & Book Button */}
                   <div className="space-y-4 pt-4 border-t-2 border-black/10">
@@ -448,14 +603,14 @@ export default function ProductDetails() {
                       <div className="flex items-center gap-3 bg-[#F5EBE6] border-2 border-black rounded-full px-3 py-1">
                         <button
                           onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                          className="p-1 hover:text-[#FF5500] transition-colors"
+                          className="p-1 hover:text-[#FF5500] transition-colors cursor-pointer"
                         >
                           <Minus className="w-4 h-4" />
                         </button>
                         <span className="font-mono font-black text-sm w-6 text-center">{quantity}</span>
                         <button
-                          onClick={() => setQuantity((q) => Math.min(stock, q + 1))}
-                          className="p-1 hover:text-[#FF5500] transition-colors"
+                          onClick={() => setQuantity((q) => Math.min(currentStock || 10, q + 1))}
+                          className="p-1 hover:text-[#FF5500] transition-colors cursor-pointer"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -464,10 +619,10 @@ export default function ProductDetails() {
 
                     <button
                       onClick={handleAddToCart}
-                      className="w-full py-4 rounded-full bg-[#00E676] text-black font-heading font-black text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center justify-center gap-2"
+                      className="w-full py-4 rounded-full bg-[#00E676] text-black font-heading font-black text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <ShoppingBag className="w-5 h-5" />
-                      <span>BOOK THIS UNIT / ADD TO SELECTION ↗</span>
+                      <span>{hasVariants ? `SELECT ${activeVariant?.shortLabel.toUpperCase()} ↗` : "BOOK THIS UNIT / ADD TO SELECTION ↗"}</span>
                     </button>
                   </div>
                 </div>
