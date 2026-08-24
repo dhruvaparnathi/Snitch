@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { createProductApi, getAllProductsApi } from "../service/product.api";
+import { createProductApi, getAllProductsApi,getSellerProductsApi } from "../service/product.api";
 import { setLoading, setError, setProducts, addProduct } from "../state/product.slice";
 
 export const useProduct = () => {
@@ -29,6 +29,10 @@ export const useProduct = () => {
                     Array.from(images).forEach((file) => {
                         formData.append("images", file);
                     });
+                }
+
+                if (productData.variants) {
+                    formData.append("variants", JSON.stringify(productData.variants));
                 }
             }
 
@@ -66,5 +70,36 @@ export const useProduct = () => {
         }
     };
 
-    return { products, loading, error, handleCreateProduct, handleGetAllProducts };
-};
+    const handleGetSellerProducts = async () => {
+        try {
+            dispatch(setLoading(true));
+            dispatch(setError(null));
+            const response = await getSellerProductsApi();
+            dispatch(setProducts(response.products || []));
+            return response;
+        } catch (err) {
+            const errorMessage = err.response?.data?.message || err.message || "Failed to fetch products";
+            dispatch(setError(errorMessage));
+            throw err;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    };
+
+    const handleGetSingleProduct = async (id) => {
+        try {
+            dispatch(setLoading(true));
+            dispatch(setError(null));
+            const response = await getSingleProductApi(id);
+            return response;
+        } catch (err) {
+            const errorMessage = err.response?.data?.message || err.message || "Failed to fetch product";
+            dispatch(setError(errorMessage));
+            throw err;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    };
+
+    return { products, loading, error, handleCreateProduct, handleGetAllProducts, handleGetSellerProducts, handleGetSingleProduct };
+};

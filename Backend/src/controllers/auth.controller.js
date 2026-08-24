@@ -14,6 +14,24 @@ export const generateToken = (req, res, userId, userRole) => {
     return tokenResponse;
 }
 
+export const getMeController = async (req, res, next) => {
+    try {
+        const token = req.cookies.token;
+        if (!token) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const decodedToken = jwt.verify(token, config.JWT_SECRET);
+        const user = await userModel.findById(decodedToken._id);
+        req.user = user;
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        return res.status(200).json({ message: "User fetched successfully", user });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
 export const registerController = async (req, res, next) => {
     try {
         const { email, mobile, fullName, password, role } = req.body;

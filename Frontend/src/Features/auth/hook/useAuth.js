@@ -1,6 +1,6 @@
 import { useDispatch } from "react-redux";
-import { registerApi, loginApi } from "../service/auth.api";
-import { setUser, setLoading, setError } from "../state/auth.slice";
+import { registerApi, loginApi, meApi } from "../service/auth.api";
+import { setUser, setLoading, setInitialized, setError } from "../state/auth.slice";
 
 export const useAuth = () => {
     const dispatch = useDispatch();
@@ -37,9 +37,25 @@ export const useAuth = () => {
         window.location.href = "/api/auth/google";
     }
 
+    const handleMe = async () => {
+        try {
+            dispatch(setLoading(true));
+            const response = await meApi();
+            dispatch(setUser(response.user));
+            return response;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+            dispatch(setInitialized(true));
+        }
+    }
+
     return {
         handleRegister,
         handleLogin,
         handleGoogleAuth,
+        handleMe
     }
 }

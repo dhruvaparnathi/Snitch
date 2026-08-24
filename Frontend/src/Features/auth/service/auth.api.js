@@ -23,3 +23,8 @@ export const loginApi = async ({ email, password }) => {
     });
     return response.data;
 };
+
+export const meApi = async () => {
+    const response = await authApiInstance.get("/me");
+    return response.data;
+};
