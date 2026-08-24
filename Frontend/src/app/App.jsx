@@ -184,8 +184,8 @@ export default function App() {
       badge: "VERIFIED UNIT",
       badgeColor: "bg-[#1677FF] text-white"
     })),
-    ...(Array.isArray(apiProducts) ? apiProducts : []).map((p) => ({
-      id: p?._id || Math.random().toString(),
+    ...(Array.isArray(apiProducts) ? apiProducts : []).map((p, idx) => ({
+      id: p?._id || `item-${idx}`,
       _id: p?._id,
       name: p?.title || p?.name || "Design Artifact",
       title: p?.title || p?.name || "Design Artifact",

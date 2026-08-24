@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { useSelector } from "react-redux";
 import {
   LayoutDashboard,
@@ -22,9 +22,8 @@ import gsap from "gsap";
 
 export default function Dashboard() {
   useLenis();
-  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
-  const { products, loading, error, handleGetSellerProducts } = useProduct();
+  const { products, loading, handleGetSellerProducts } = useProduct();
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState(null);
 

@@ -2,10 +2,10 @@ import { createBrowserRouter } from "react-router";
 import App from "./App.jsx";
 import Register from "../Features/auth/pages/Register.jsx";
 import Login from "../Features/auth/pages/Login.jsx";
-import CreateProduct from "../Features/product/pages/CreateProduct.jsx";
 import Dashboard from "../Features/product/pages/Dashboard.jsx";
 import ProductDetails from "../Features/product/pages/ProductDetails.jsx";
 import Protected from "../Features/auth/pages/Protected.jsx";
+import CreateProduct from "../Features/product/pages/CreateProduct.jsx";
 
 export const routes = createBrowserRouter([
   {

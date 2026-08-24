@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router";
-import { useSelector } from "react-redux";
+import { useParams, Link } from "react-router";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -111,9 +110,7 @@ const STATIC_UNITS_DATA = [
 export default function ProductDetails() {
   useLenis();
   const { id } = useParams();
-  const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
-  const { handleGetSingleProduct, loading: apiLoading } = useProduct();
+  const { handleGetSingleProduct } = useProduct();
 
   // State
   const [product, setProduct] = useState(null);

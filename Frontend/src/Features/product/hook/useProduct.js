@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { createProductApi, getAllProductsApi,getSellerProductsApi } from "../service/product.api";
+import { createProductApi, getAllProductsApi, getSellerProductsApi, getSingleProductApi } from "../service/product.api";
 import { setLoading, setError, setProducts, addProduct } from "../state/product.slice";
 
 export const useProduct = () => {
