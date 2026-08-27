@@ -1,6 +1,7 @@
 import express from "express";
 import passport from "passport";
-import { registerValidation, loginValidation, validate } from "../validators/auth.validator.js";
+import { validate } from "../validators/validate.js";
+import { registerValidation, loginValidation } from "../validators/auth.validator.js";
 import { getMeController, registerController, loginController, googleCallbackController } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 

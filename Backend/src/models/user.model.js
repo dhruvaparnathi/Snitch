@@ -31,13 +31,16 @@ const userSchema = new mongoose.Schema({
     },
     isVerified: {
         type: Boolean,
-        default: googleId ? true : false,
+        default: false,
     },
 }, { timestamps: true });
 
-userSchema.pre("save", async function() {
+userSchema.pre("save", async function () {
     if (this.password && this.isModified("password")) {
         this.password = await bcrypt.hash(this.password, 10);
+    }
+    if(this.googleId){
+        this.isVerified = true;
     }
 });
 

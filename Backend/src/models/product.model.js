@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import priceSchema from "./price.schema";
+import priceSchema from "./price.schema.js";
 
 const variantSchema = new mongoose.Schema({
     images: [{

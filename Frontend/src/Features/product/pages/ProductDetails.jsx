@@ -27,114 +27,6 @@ import BuyerLoader from "../../../Components/loaders/BuyerLoader.jsx";
 
 const FALLBACK_DEFAULT_IMG = "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1200&q=80";
 
-// Mock Fallback Units Data for instant matching
-const STATIC_UNITS_DATA = [
-  {
-    id: "kick",
-    title: "Kick Unit Loft",
-    name: "Kick Unit Loft",
-    category: "Living Units",
-    price: { amount: 640, currency: "EUR" },
-    stock: 8,
-    description: "Compact high-performance architectural studio unit. Includes private bathroom, custom oak work desk, queen-size bed capsule, and high-speed fiber Wi-Fi.",
-    specs: [
-      { label: "Floor Area", val: "24 m²" },
-      { label: "Location", val: "Athens Central Hub" },
-      { label: "Bath & Kitchen", val: "Private Ensuite" },
-      { label: "Access Control", val: "Smart Keyless NFC" },
-      { label: "Climate", val: "A+++ Dual Inverter AC" },
-    ],
-    variants: [
-      {
-        attributes: [{ key: "Floor", val: "2nd Floor" }, { key: "View", val: "City Park" }],
-        prices: { amount: 640, currency: "EUR" },
-        stock: 5
-      },
-      {
-        attributes: [{ key: "Floor", val: "4th Floor" }, { key: "View", val: "Sunset Skyline" }],
-        prices: { amount: 670, currency: "EUR" },
-        stock: 3
-      }
-    ],
-    Images: [
-      { url: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1200&q=80", alt: "Kick Unit View" },
-      { url: "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=1200&q=80", alt: "Living Space" },
-    ]
-  },
-  {
-    id: "boost",
-    title: "Boost Unit Suite",
-    name: "Boost Unit Suite",
-    category: "Living Units",
-    price: { amount: 680, currency: "EUR" },
-    stock: 5,
-    description: "Spacious urban apartment suite with private sun-terrace, fully equipped minimalist kitchenette, smart electronic keypad door lock, and acoustic soundproofing.",
-    specs: [
-      { label: "Floor Area", val: "29 m²" },
-      { label: "Location", val: "Piraeus Port Hub" },
-      { label: "Kitchen", val: "Induction & Fridge" },
-      { label: "Security", val: "24/7 CCTV & Keyless Entry" },
-      { label: "Laundry", val: "In-Building Smart Hub" },
-    ],
-    variants: [
-      {
-        attributes: [{ key: "Terrace", val: "East Balcony" }, { key: "Layout", val: "Studio Plus" }],
-        prices: { amount: 680, currency: "EUR" },
-        stock: 3
-      },
-      {
-        attributes: [{ key: "Terrace", val: "Panoramic Sun-Deck" }, { key: "Layout", val: "Suite Deluxe" }],
-        prices: { amount: 720, currency: "EUR" },
-        stock: 2
-      }
-    ],
-    Images: [
-      { url: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80", alt: "Boost Unit Room" },
-      { url: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80", alt: "Kitchenette" },
-    ]
-  },
-  {
-    id: "flex",
-    title: "Flex Unit Workspace",
-    name: "Flex Unit Workspace",
-    category: "Living Units",
-    price: { amount: 750, currency: "EUR" },
-    stock: 4,
-    description: "Corner loft engineered for hybrid creators. Features double acoustic glazed windows, ergonomic Herman Miller setup, and panoramic skyline balcony.",
-    specs: [
-      { label: "Floor Area", val: "35 m²" },
-      { label: "Location", val: "Thessaloniki North" },
-      { label: "Ergonomics", val: "Standing Desk & Chair" },
-      { label: "Power", val: "Backup UPS & 1Gbps LAN" },
-      { label: "Terrace", val: "Private 10m²" },
-    ],
-    Images: [
-      { url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80", alt: "Flex Unit Interior" },
-      { url: "https://images.unsplash.com/photo-1502005229762-ee152da915ba?auto=format&fit=crop&w=1200&q=80", alt: "Desk Area" },
-    ]
-  },
-  {
-    id: "vibe",
-    title: "Vibe Penthouse Unit",
-    name: "Vibe Penthouse Unit",
-    category: "Living Units",
-    price: { amount: 800, currency: "EUR" },
-    stock: 2,
-    description: "Top-floor flagship penthouse suite featuring 360-degree city views, marble accents, smart ambient mood lighting, and king-size luxury mattress.",
-    specs: [
-      { label: "Floor Area", val: "42 m²" },
-      { label: "Location", val: "Athens Panorama" },
-      { label: "Audio", val: "Integrated Focal Speakers" },
-      { label: "Bed", val: "Organic Latex King" },
-      { label: "Concierge", val: "Priority 24/7 Access" },
-    ],
-    Images: [
-      { url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80", alt: "Vibe Living" },
-      { url: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=1200&q=80", alt: "Panoramic View" },
-    ]
-  }
-];
-
 export default function ProductDetails() {
   useLenis();
   const { id } = useParams();
@@ -153,32 +45,24 @@ export default function ProductDetails() {
   useEffect(() => {
     async function loadProduct() {
       setLoading(true);
-      
-      // Check static units first
-      const staticMatch = STATIC_UNITS_DATA.find((u) => u.id === id);
-      if (staticMatch) {
-        setProduct(staticMatch);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch from API
       try {
         const res = await handleGetSingleProduct(id);
         if (res && res.product) {
           setProduct(res.product);
         } else {
-          setProduct(STATIC_UNITS_DATA[0]);
+          setProduct(null);
         }
       } catch (err) {
-        console.warn("API product not found, falling back to static unit:", err);
-        setProduct(STATIC_UNITS_DATA[0]);
+        console.warn("API product fetch error:", err);
+        setProduct(null);
       } finally {
         setLoading(false);
       }
     }
 
-    loadProduct();
+    if (id) {
+      loadProduct();
+    }
   }, [id]);
 
   useEffect(() => {
@@ -189,7 +73,7 @@ export default function ProductDetails() {
           y: 25,
           opacity: 0,
           stagger: 0.08,
-          duration: 0.7,
+          duration: 0.75,
           ease: "power3.out",
           clearProps: "all"
         });
@@ -202,8 +86,31 @@ export default function ProductDetails() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  if (loading || !product) {
-    return <BuyerLoader duration={1.2} />;
+  if (loading) {
+    return <BuyerLoader duration={0.8} />;
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-[#F5EBE6] text-black font-body flex items-center justify-center p-6">
+        <div className="bg-white border-2 border-black rounded-[32px] p-8 sm:p-12 shadow-[6px_6px_0px_#000000] text-center max-w-md">
+          <div className="w-16 h-16 bg-[#FF5500] border-2 border-black rounded-2xl mx-auto mb-4 flex items-center justify-center text-white font-mono text-2xl font-black shadow-[2px_2px_0px_#000000]">
+            ✕
+          </div>
+          <h2 className="font-heading font-black text-2xl mb-2">Product Not Found</h2>
+          <p className="font-mono text-xs text-black/70 mb-6">
+            The requested product is unavailable or has been removed.
+          </p>
+          <Link
+            to="/"
+            className="px-6 py-3 rounded-full bg-black text-white font-heading font-black text-xs border-2 border-black hover:bg-[#FF5500] transition-colors inline-flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>RETURN TO STOREFRONT</span>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const title = product.title || product.name || "Snitch Product Unit";
@@ -238,7 +145,13 @@ export default function ProductDetails() {
     const vPrice = v.prices?.amount !== undefined ? v.prices.amount : (v.priceAmount !== undefined ? v.priceAmount : basePriceAmount);
     const vCurr = v.prices?.currency || v.priceCurrency || basePriceCurrency;
     const vStock = v.stock !== undefined ? v.stock : baseStock;
-    const vImg = v.images?.[0]?.url || (v.previewUrl && !v.previewUrl.startsWith("blob:") ? v.previewUrl : null);
+    const vImg = v.images?.[0]?.url ||
+      (typeof v.images?.[0] === "string" ? v.images[0] : null) ||
+      v.Images?.[0]?.url ||
+      (typeof v.Images?.[0] === "string" ? v.Images[0] : null) ||
+      (typeof v.image === "string" ? v.image : v.image?.url) ||
+      (v.previewUrl && !v.previewUrl.startsWith("blob:") ? v.previewUrl : null) ||
+      (rawImages[idx] || null);
 
     return {
       id: v._id || `variant-${idx}`,
@@ -260,18 +173,33 @@ export default function ProductDetails() {
   const currentCurrency = activeVariant ? activeVariant.priceCurrency : basePriceCurrency;
   const currentStock = activeVariant ? activeVariant.stock : baseStock;
 
-  // Primary display image
-  const displayImage = (activeVariant?.image && !activeVariant.image.startsWith("blob:"))
-    ? activeVariant.image
-    : (rawImages[activeImageIdx] || rawImages[0] || FALLBACK_DEFAULT_IMG);
+  // Primary display image: prioritized by active variant photo or selected thumbnail
+  const displayImage =
+    (activeVariant?.image && !activeVariant.image.startsWith("blob:") ? activeVariant.image : null) ||
+    rawImages[activeImageIdx] ||
+    rawImages[0] ||
+    FALLBACK_DEFAULT_IMG;
 
   const handleSelectVariant = (idx) => {
     setSelectedVariantIdx(idx);
     const v = normalizedVariants[idx];
-    if (v && v.image && rawImages.includes(v.image)) {
-      setActiveImageIdx(rawImages.indexOf(v.image));
-    } else if (idx < rawImages.length) {
-      setActiveImageIdx(idx);
+    if (v) {
+      if (v.image && rawImages.includes(v.image)) {
+        setActiveImageIdx(rawImages.indexOf(v.image));
+      } else if (rawImages[idx]) {
+        setActiveImageIdx(idx);
+      }
+    }
+  };
+
+  const handleSelectThumbnail = (idx) => {
+    setActiveImageIdx(idx);
+    const clickedImg = rawImages[idx];
+    const matchingVarIdx = normalizedVariants.findIndex((v) => v.image === clickedImg);
+    if (matchingVarIdx !== -1) {
+      setSelectedVariantIdx(matchingVarIdx);
+    } else if (idx < normalizedVariants.length) {
+      setSelectedVariantIdx(idx);
     }
   };
 
@@ -471,9 +399,7 @@ export default function ProductDetails() {
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => {
-                          setActiveImageIdx(idx);
-                        }}
+                        onClick={() => handleSelectThumbnail(idx)}
                         className={`w-24 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all cursor-pointer p-0.5 ${
                           isSelected
                             ? "border-black bg-[#FF5500] shadow-[2px_2px_0px_#000000]"
@@ -558,7 +484,7 @@ export default function ProductDetails() {
                         </span>
                       </div>
 
-                      {/* Variant Option Pills */}
+                      {/* Variant Option Pills with Visual Image Preview */}
                       <div className="flex flex-wrap gap-2">
                         {normalizedVariants.map((v, idx) => {
                           const isSelected = selectedVariantIdx === idx;
@@ -567,14 +493,22 @@ export default function ProductDetails() {
                               key={v.id}
                               type="button"
                               onClick={() => handleSelectVariant(idx)}
-                              className={`px-4 py-2.5 rounded-xl font-heading font-extrabold text-xs border-2 border-black transition-all flex items-center gap-2 cursor-pointer ${
+                              className={`px-3.5 py-2.5 rounded-xl font-heading font-extrabold text-xs border-2 border-black transition-all flex items-center gap-2.5 cursor-pointer ${
                                 isSelected
                                   ? "bg-black text-white shadow-[2px_2px_0px_#FF5500] scale-[1.02]"
                                   : "bg-white text-black hover:bg-black/5"
                               }`}
                             >
+                              {v.image && (
+                                <img
+                                  src={v.image}
+                                  alt={v.shortLabel}
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                  className="w-6 h-6 rounded-lg object-cover border border-black flex-shrink-0 bg-white"
+                                />
+                              )}
                               <span>{v.shortLabel}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-[#00E676]" />}
+                              {isSelected && <Check className="w-3.5 h-3.5 text-[#00E676] ml-auto" />}
                             </button>
                           );
                         })}

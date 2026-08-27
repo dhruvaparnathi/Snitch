@@ -18,7 +18,9 @@ import {
   Zap,
   LayoutDashboard,
   CheckCircle2,
-  ExternalLink
+  Package,
+  Layers,
+  PlusCircle
 } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Autoplay } from "swiper/modules";
@@ -32,78 +34,16 @@ import PixelArtCanvas from "../Components/common/PixelArtCanvas.jsx";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Units Available for Interactive Showcase
-const UNITS_DATA = [
-  {
-    id: "kick",
-    name: "Kick Unit",
-    title: "Kick Unit",
-    priceText: "From 640€ / month",
-    priceVal: 640,
-    currency: "EUR",
-    area: "24 m²",
-    location: "Athens Central",
-    specs: "Private bathroom • Work desk • Queen bed • High-speed Wi-Fi",
-    images: [
-      "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=1200&q=80",
-    ]
-  },
-  {
-    id: "boost",
-    name: "Boost Unit",
-    title: "Boost Unit",
-    priceText: "From 680€ / month",
-    priceVal: 680,
-    currency: "EUR",
-    area: "29 m²",
-    location: "Piraeus Port Hub",
-    specs: "Balcony access • Full kitchenette • Smart lock • AC climate control",
-    images: [
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80",
-    ]
-  },
-  {
-    id: "flex",
-    name: "Flex Unit",
-    title: "Flex Unit",
-    priceText: "From 750€ / month",
-    priceVal: 750,
-    currency: "EUR",
-    area: "35 m²",
-    location: "Thessaloniki",
-    specs: "Corner loft • Double wardrobe • Ergonomic Herman Miller desk • Lounge space",
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1502005229762-ee152da915ba?auto=format&fit=crop&w=1200&q=80",
-    ]
-  },
-  {
-    id: "vibe",
-    name: "Vibe Unit",
-    title: "Vibe Unit",
-    priceText: "From 800€ / month",
-    priceVal: 800,
-    currency: "EUR",
-    area: "42 m²",
-    location: "Athens Panorama",
-    specs: "Penthouse terrace • Panoramic city skyline • Premium acoustics • King suite",
-    images: [
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=1200&q=80",
-    ]
-  }
-];
+const FALLBACK_IMG = "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=1200&q=80";
 
 export default function App() {
   useLenis();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
-  const { products: apiProducts, handleGetAllProducts } = useProduct();
+  const { products: apiProducts, loading: productsLoading, handleGetAllProducts } = useProduct();
 
   // State
-  const [selectedUnit, setSelectedUnit] = useState(UNITS_DATA[1]); // Default to Boost Unit
+  const [selectedProductId, setSelectedProductId] = useState(null);
   const [lang, setLang] = useState("EN");
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -121,7 +61,7 @@ export default function App() {
         y: 35,
         opacity: 0,
         stagger: 0.08,
-        duration: 0.9,
+        duration: 0.8,
         ease: "power3.out",
         clearProps: "all"
       });
@@ -130,17 +70,54 @@ export default function App() {
     return () => ctx.revert();
   }, []);
 
+  // Real user products list
+  const userProducts = Array.isArray(apiProducts) ? apiProducts : [];
+
+  // Currently selected product for featured showcase
+  const selectedProduct =
+    userProducts.find((p) => (p._id || p.id) === selectedProductId) ||
+    userProducts[0] ||
+    null;
+
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Helper to extract image safely
+  const getProductImage = (product) => {
+    if (!product) return FALLBACK_IMG;
+    if (product.Images && product.Images.length > 0) {
+      const first = product.Images[0];
+      return typeof first === "string" ? first : first?.url || FALLBACK_IMG;
+    }
+    if (product.images && product.images.length > 0) {
+      const first = product.images[0];
+      return typeof first === "string" ? first : first?.url || FALLBACK_IMG;
+    }
+    return product.image || FALLBACK_IMG;
+  };
+
+  // Helper to get all image URLs for slider
+  const getProductImages = (product) => {
+    if (!product) return [FALLBACK_IMG];
+    let imgs = [];
+    if (Array.isArray(product.Images) && product.Images.length > 0) {
+      imgs = product.Images.map((i) => (typeof i === "string" ? i : i?.url)).filter(Boolean);
+    } else if (Array.isArray(product.images) && product.images.length > 0) {
+      imgs = product.images.map((i) => (typeof i === "string" ? i : i?.url)).filter(Boolean);
+    }
+    return imgs.length > 0 ? imgs : [FALLBACK_IMG];
+  };
+
   const addToCart = (product) => {
+    if (!product) return;
     const prodId = product._id || product.id;
-    const priceVal = product.price?.amount || product.priceVal || product.priceAmount || 0;
-    const prodName = product.title || product.name || "Unit";
-    const prodPrice = product.priceText || `${product.price?.currency || product.currency || "EUR"} ${priceVal}`;
-    const prodImage = product.Images?.[0]?.url || product.images?.[0]?.url || product.images?.[0] || product.image;
+    const priceVal = product.price?.amount !== undefined ? Number(product.price.amount) : (Number(product.priceVal) || 0);
+    const prodName = product.title || product.name || "Product";
+    const prodCurrency = product.price?.currency || product.currency || "INR";
+    const prodPrice = `${prodCurrency} ${priceVal.toLocaleString()}`;
+    const prodImage = getProductImage(product);
 
     setCart((prev) => {
       const exists = prev.find((item) => item.id === prodId);
@@ -151,16 +128,20 @@ export default function App() {
             : item
         );
       }
-      return [...prev, {
-        id: prodId,
-        name: prodName,
-        price: prodPrice,
-        priceVal: priceVal,
-        image: prodImage,
-        quantity: 1
-      }];
+      return [
+        ...prev,
+        {
+          id: prodId,
+          name: prodName,
+          price: prodPrice,
+          priceVal: priceVal,
+          currency: prodCurrency,
+          image: prodImage,
+          quantity: 1
+        }
+      ];
     });
-    triggerToast(`Added "${prodName}" to selection`);
+    triggerToast(`Added "${prodName}" to cart`);
   };
 
   const removeFromCart = (id) => {
@@ -172,47 +153,22 @@ export default function App() {
     return sum + val * item.quantity;
   }, 0);
 
-  // Combine Store Products
-  const combinedProducts = [
-    ...UNITS_DATA.map((u) => ({
-      id: u.id,
-      _id: u.id,
-      name: u.name,
-      title: u.name,
-      category: "Living Units",
-      price: u.priceText,
-      priceVal: u.priceVal,
-      currency: "EUR",
-      specs: u.specs,
-      image: u.images[0],
-      badge: "VERIFIED UNIT",
-      badgeColor: "bg-[#1677FF] text-white"
-    })),
-    ...(Array.isArray(apiProducts) ? apiProducts : []).map((p, idx) => ({
-      id: p?._id || `item-${idx}`,
-      _id: p?._id,
-      name: p?.title || p?.name || "Design Artifact",
-      title: p?.title || p?.name || "Design Artifact",
-      category: p?.category || "Artifacts",
-      price: `${p?.price?.currency || p?.priceCurrency || "INR"} ${p?.price?.amount || p?.priceAmount || 0}`,
-      priceVal: p?.price?.amount || p?.priceAmount || 0,
-      currency: p?.price?.currency || p?.priceCurrency || "INR",
-      specs: p?.description ? String(p.description).slice(0, 50) + "..." : "Authentic Snitch Artifact",
-      image: p?.Images?.[0]?.url || p?.images?.[0]?.url || "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80",
-      badge: "SELLER ITEM",
-      badgeColor: "bg-[#FF5500] text-white"
-    }))
+  // Available Categories extracted from real user products
+  const productCategories = [
+    "All",
+    ...Array.from(new Set(userProducts.map((p) => p.category).filter(Boolean)))
   ];
 
-  const filteredProducts = combinedProducts.filter((item) => {
+  // Filtered Products
+  const filteredProducts = userProducts.filter((item) => {
     if (!item) return false;
-    const name = String(item.name || item.title || "").toLowerCase();
-    const specs = String(item.specs || "").toLowerCase();
-    const category = String(item.category || "");
+    const name = String(item.title || item.name || "").toLowerCase();
+    const desc = String(item.description || "").toLowerCase();
+    const cat = String(item.category || "");
     const q = String(searchQuery || "").toLowerCase();
 
-    const matchesCat = selectedCategory === "All" || category === selectedCategory;
-    const matchesQ = name.includes(q) || specs.includes(q);
+    const matchesCat = selectedCategory === "All" || cat === selectedCategory;
+    const matchesQ = name.includes(q) || desc.includes(q);
     return matchesCat && matchesQ;
   });
 
@@ -242,7 +198,7 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => setIsCartOpen(false)}
-                  className="p-2 rounded-xl bg-[#F5EBE6] hover:bg-black hover:text-white transition-colors border border-black"
+                  className="p-2 rounded-xl bg-[#F5EBE6] hover:bg-black hover:text-white transition-colors border border-black cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -252,12 +208,12 @@ export default function App() {
                 {cart.length === 0 ? (
                   <div className="text-center py-16 text-black/50">
                     <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-30 text-black" />
-                    <p className="font-bold font-mono text-sm">Your booking selection is empty.</p>
+                    <p className="font-bold font-mono text-sm">Your cart is empty.</p>
                   </div>
                 ) : (
                   cart.map((item) => (
                     <div key={item.id} className="p-3.5 rounded-2xl bg-[#F5EBE6] border-2 border-black flex items-center gap-3">
-                      <img src={item.image} alt={item.name} className="w-16 h-16 rounded-xl object-cover border border-black" />
+                      <img src={item.image} alt={item.name} className="w-16 h-16 rounded-xl object-cover border border-black bg-white" />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-heading font-extrabold text-sm truncate">{item.name}</h4>
                         <p className="text-xs font-mono font-bold text-[#FF5500]">{item.price}</p>
@@ -265,7 +221,7 @@ export default function App() {
                       </div>
                       <button
                         onClick={() => removeFromCart(item.id)}
-                        className="text-xs p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        className="text-xs p-2 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -277,20 +233,20 @@ export default function App() {
 
             <div className="pt-6 border-t-2 border-black">
               <div className="flex items-center justify-between mb-4">
-                <span className="font-mono font-bold text-sm text-black/70">ESTIMATED TOTAL</span>
-                <span className="font-heading font-black text-2xl">${cartTotal.toLocaleString()}</span>
+                <span className="font-mono font-bold text-sm text-black/70">TOTAL</span>
+                <span className="font-heading font-black text-2xl">{cart[0]?.currency || "INR"} {cartTotal.toLocaleString()}</span>
               </div>
               <button
                 onClick={() => {
                   if (cart.length === 0) return;
-                  triggerToast("Reservation confirmed with Snitch team!");
+                  triggerToast("Order placed with creators!");
                   setCart([]);
                   setIsCartOpen(false);
                 }}
                 disabled={cart.length === 0}
-                className="w-full py-4 rounded-2xl bg-[#00C853] text-black font-extrabold text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-40"
+                className="w-full py-4 rounded-2xl bg-[#00C853] text-black font-extrabold text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-40 cursor-pointer"
               >
-                PROCEED TO BOOKING ↗
+                PROCEED TO CHECKOUT ↗
               </button>
             </div>
           </div>
@@ -302,13 +258,13 @@ export default function App() {
         <div className="animate-marquee-left whitespace-nowrap flex gap-8 items-center">
           <span>SNITCH ARCHITECTURAL COMMERCE</span>
           <span className="text-white">✦</span>
-          <span className="text-white">24/7 Security</span>
+          <span className="text-white">Live Creator Products</span>
           <span className="text-white">✦</span>
-          <span>Fast and reliable dispatch</span>
+          <span>Authentic User Artifacts</span>
           <span className="text-white">✦</span>
-          <span className="text-white">Smart living</span>
+          <span className="text-white">Direct Seller Marketplace</span>
           <span className="text-white">✦</span>
-          <span>Private kitchen & bathroom</span>
+          <span>High-Velocity Commerce</span>
           <span className="text-white">✦</span>
           <span className="text-white">SNITCH PROTOCOL</span>
           <span className="text-white">✦</span>
@@ -327,17 +283,17 @@ export default function App() {
               snitch<span className="text-[#FF5500]">.</span>
             </h1>
             <span className="text-[8px] font-mono font-bold tracking-widest text-black/80 block uppercase -mt-1">
-              ARCHITECTURAL COMMERCE
+              STOREFRONT SYSTEM
             </span>
           </Link>
 
           {/* Vertical Stack of Colored Nav Pills */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-1 gap-2.5">
             
-            {/* 01 Blue Pill */}
+            {/* 01 Blue Pill - Featured */}
             <button
               onClick={() => {
-                const el = document.getElementById("units-showcase");
+                const el = document.getElementById("featured-showcase");
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
               className="units-pill bg-[#1677FF] text-black font-heading font-extrabold p-3 sm:p-3.5 rounded-2xl flex flex-col justify-between h-20 text-left border-2 border-black shadow-[2px_2px_0px_#000000]"
@@ -346,25 +302,25 @@ export default function App() {
                 <span>01</span>
                 <ArrowUpRight className="w-4 h-4" />
               </div>
-              <span className="text-sm font-black leading-tight">Student Homes</span>
+              <span className="text-sm font-black leading-tight">Featured</span>
             </button>
 
-            {/* 02 Yellow Pill */}
+            {/* 02 Green Pill - Catalog */}
             <button
               onClick={() => {
-                const el = document.getElementById("our-way");
+                const el = document.getElementById("catalog");
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="units-pill bg-[#FFB800] text-black font-heading font-extrabold p-3 sm:p-3.5 rounded-2xl flex flex-col justify-between h-20 text-left border-2 border-black shadow-[2px_2px_0px_#000000]"
+              className="units-pill bg-[#00C853] text-black font-heading font-extrabold p-3 sm:p-3.5 rounded-2xl flex flex-col justify-between h-20 text-left border-2 border-black shadow-[2px_2px_0px_#000000]"
             >
               <div className="flex items-center justify-between text-xs font-mono">
                 <span>02</span>
                 <ArrowUpRight className="w-4 h-4" />
               </div>
-              <span className="text-sm font-black leading-tight">Our way of living</span>
+              <span className="text-sm font-black leading-tight">All Products</span>
             </button>
 
-            {/* 03 Orange Pill */}
+            {/* 03 Orange Pill - Community */}
             <button
               onClick={() => {
                 const el = document.getElementById("community");
@@ -376,23 +332,33 @@ export default function App() {
                 <span>03</span>
                 <ArrowUpRight className="w-4 h-4" />
               </div>
-              <span className="text-sm font-black leading-tight">Community</span>
+              <span className="text-sm font-black leading-tight">How We Think</span>
             </button>
 
-            {/* 04 Green Pill */}
-            <button
-              onClick={() => {
-                const el = document.getElementById("catalog");
-                el?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="units-pill bg-[#00C853] text-black font-heading font-extrabold p-3 sm:p-3.5 rounded-2xl flex flex-col justify-between h-20 text-left border-2 border-black shadow-[2px_2px_0px_#000000]"
-            >
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span>04</span>
-                <ArrowUpRight className="w-4 h-4" />
-              </div>
-              <span className="text-sm font-black leading-tight">Artifact Catalog</span>
-            </button>
+            {/* 04 Yellow Pill - Seller Gateway */}
+            {user?.role === "seller" ? (
+              <Link
+                to="/seller/create-product"
+                className="units-pill bg-[#FFD600] text-black font-heading font-extrabold p-3 sm:p-3.5 rounded-2xl flex flex-col justify-between h-20 text-left border-2 border-black shadow-[2px_2px_0px_#000000]"
+              >
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span>04</span>
+                  <PlusCircle className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-black leading-tight">Add Product</span>
+              </Link>
+            ) : (
+              <Link
+                to="/seller/dashboard"
+                className="units-pill bg-[#FFD600] text-black font-heading font-extrabold p-3 sm:p-3.5 rounded-2xl flex flex-col justify-between h-20 text-left border-2 border-black shadow-[2px_2px_0px_#000000]"
+              >
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span>04</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-black leading-tight">Become Seller</span>
+              </Link>
+            )}
           </div>
 
           {/* Book / Cart Lilac Pill */}
@@ -400,7 +366,7 @@ export default function App() {
             onClick={() => setIsCartOpen(true)}
             className="units-pill bg-[#C4A1FF] text-black font-heading font-black p-3.5 rounded-2xl text-center text-sm border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center justify-center gap-2"
           >
-            <span>Book your Unit</span>
+            <span>Your Cart</span>
             {cart.length > 0 && (
               <span className="w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center">
                 {cart.reduce((s, i) => s + i.quantity, 0)}
@@ -428,7 +394,7 @@ export default function App() {
                 <span>SELLER TERMINAL</span>
               </Link>
             ) : (
-              <div className="bg-white border-2 border-black p-2.5 rounded-2xl text-center text-xs font-mono font-bold">
+              <div className="bg-white border-2 border-black p-2.5 rounded-2xl text-center text-xs font-mono font-bold truncate">
                 {user.fullName || user.email}
               </div>
             )
@@ -456,225 +422,161 @@ export default function App() {
         {/* Main Content Canvas */}
         <main className="flex-1 flex flex-col gap-8 min-w-0">
           
-          {/* Bento Grid (Mirroring Units.gr Hero Layout Exactly) */}
-          <section id="our-way" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 units-anim">
+          {/* Section 1: Featured Products Interactive Switcher */}
+          <section id="featured-showcase" className="flex flex-col gap-4 units-anim">
             
-            {/* 1. Large Vibrant Interior Architecture Photo */}
-            <div className="lg:col-span-5 h-[340px] sm:h-[420px] rounded-[28px] overflow-hidden border-2 border-black shadow-[3px_3px_0px_#000000] relative group">
-              <img
-                src="https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80"
-                alt="Snitch Lounge"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 rounded-full font-mono text-xs font-bold border border-white">
-                SNITCH PARK CENTRAL
-              </div>
-            </div>
-
-            {/* 2. Solid Orange "Security" Bento Card */}
-            <div className="lg:col-span-4 bg-[#FF5500] text-black p-7 rounded-[28px] border-2 border-black shadow-[3px_3px_0px_#000000] flex flex-col justify-between">
-              <div>
-                <h2 className="font-heading font-black text-3xl sm:text-4xl tracking-tight text-black">
-                  Security
-                </h2>
-                <h3 className="font-heading font-extrabold text-sm sm:text-base text-black/90 mb-4 mt-0.5">
-                  Day and night
-                </h3>
-
-                <div className="space-y-0 text-black">
-                  <div className="units-list-item">24/7 CCTV Surveillance</div>
-                  <div className="units-list-item">7/7 Night patrol</div>
-                  <div className="units-list-item">High-security entrance door with electronic lock</div>
-                  <div className="units-list-item border-none pb-0">Smart and secure access control</div>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. Right Laptop & Croissant Workspace Photo */}
-            <div className="lg:col-span-3 h-[340px] sm:h-[420px] rounded-[28px] overflow-hidden border-2 border-black shadow-[3px_3px_0px_#000000] relative group">
-              <img
-                src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80"
-                alt="Workspace and Lifestyle"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-            </div>
-
-            {/* 4. Solid Lilac "Community Living Spaces" Bento Card */}
-            <div className="lg:col-span-4 bg-[#C4A1FF] text-black p-7 rounded-[28px] border-2 border-black shadow-[3px_3px_0px_#000000] flex flex-col justify-between">
-              <div>
-                <h2 className="font-heading font-black text-2xl sm:text-3xl tracking-tight text-black">
-                  Community living spaces
-                </h2>
-                <h3 className="font-heading font-extrabold text-sm text-black/90 mb-4 mt-0.5">
-                  Open access, 24/7
-                </h3>
-
-                <div className="space-y-0 text-black">
-                  <div className="units-list-item">Fully equipped gym</div>
-                  <div className="units-list-item">Self-service laundry room</div>
-                  <div className="units-list-item border-none pb-0">Social areas</div>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. Keypad Electronic Smart Lock Photo Block */}
-            <div className="lg:col-span-4 h-[260px] sm:h-[300px] rounded-[28px] overflow-hidden border-2 border-black shadow-[3px_3px_0px_#000000] relative group">
-              <img
-                src="https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=800&q=80"
-                alt="Smart Keyless Lock"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-            </div>
-
-            {/* 6. Solid Yellow "Support" Bento Card */}
-            <div className="lg:col-span-4 bg-[#FFD600] text-black p-7 rounded-[28px] border-2 border-black shadow-[3px_3px_0px_#000000] flex flex-col justify-between">
-              <div>
-                <h2 className="font-heading font-black text-2xl sm:text-3xl tracking-tight text-black">
-                  Support
-                </h2>
-                <h3 className="font-heading font-extrabold text-sm text-black/90 mb-4 mt-0.5">
-                  We've got you covered
-                </h3>
-
-                <div className="space-y-0 text-black">
-                  <div className="units-list-item">24/7 Resident support</div>
-                  <div className="units-list-item">Check-in & Onboarding assistance</div>
-                  <div className="units-list-item">Fast request handling</div>
-                  <div className="units-list-item">Fast maintenance support</div>
-                  <div className="units-list-item border-none pb-0">Continuous experience improvements</div>
-                </div>
-              </div>
-            </div>
-
-          </section>
-
-          {/* Section 2: "Check out our Units" (Image 2 from Screenshots) */}
-          <section id="units-showcase" className="flex flex-col gap-4 mt-6">
-            
-            {/* Top Red/Orange Down Arrow Banner */}
-            <div className="bg-[#FF5500] text-black font-heading font-black text-2xl sm:text-4xl py-4 px-6 rounded-2xl border-2 border-black shadow-[3px_3px_0px_#000000] flex items-center justify-between">
+            {/* Header Ribbon */}
+            <div className="bg-[#FF5500] text-black font-heading font-black text-2xl sm:text-3xl py-4 px-6 rounded-2xl border-2 border-black shadow-[3px_3px_0px_#000000] flex items-center justify-between">
               <span className="text-[#1677FF] font-black">↓↓</span>
-              <h2 className="tracking-tight">Check out our Units</h2>
+              <h2 className="tracking-tight uppercase">Featured Products</h2>
               <span className="text-[#1677FF] font-black">↓↓</span>
             </div>
 
-            {/* Interactive Unit Switcher & Photo Slider Box */}
-            <div className="bg-white border-2 border-black rounded-[32px] p-6 sm:p-8 shadow-[4px_4px_0px_#000000] grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              
-              {/* Left Column: Interactive Unit Selection Pills */}
-              <div className="lg:col-span-4 flex flex-col gap-3">
-                {UNITS_DATA.map((unit) => {
-                  const isActive = selectedUnit.id === unit.id;
-                  return (
-                    <button
-                      key={unit.id}
-                      onClick={() => setSelectedUnit(unit)}
-                      className={`w-full py-4 px-6 rounded-full border-2 border-black text-left flex items-center justify-between transition-all font-heading ${
-                        isActive
-                          ? "bg-black text-white shadow-[2px_2px_0px_#FF5500] scale-[1.02]"
-                          : "bg-white text-black hover:bg-[#F5EBE6]"
-                      }`}
-                    >
-                      <div>
-                        <div className="font-extrabold text-lg">{unit.name}</div>
-                        <div className={`text-xs font-mono font-bold ${isActive ? "text-[#FFB800]" : "text-black/70"}`}>
-                          {unit.priceText}
+            {/* Interactive Showcase Box */}
+            {productsLoading ? (
+              <div className="bg-white border-2 border-black rounded-[32px] p-8 shadow-[4px_4px_0px_#000000]">
+                <CardSkeleton count={2} />
+              </div>
+            ) : userProducts.length === 0 ? (
+              <div className="bg-white border-2 border-black rounded-[32px] p-8 sm:p-12 shadow-[4px_4px_0px_#000000] text-center flex flex-col items-center">
+                <div className="w-20 h-20 bg-[#FFD600] border-2 border-black rounded-3xl p-4 flex items-center justify-center shadow-[3px_3px_0px_#000000] mb-4">
+                  <Package className="w-10 h-10 text-black" />
+                </div>
+                <h3 className="font-heading font-black text-2xl sm:text-3xl text-black mb-2">
+                  No Products Published Yet
+                </h3>
+                <p className="font-mono text-xs sm:text-sm text-black/70 max-w-md mb-6">
+                  Sellers have not published any products to the storefront registry yet.
+                </p>
+                <Link
+                  to={user ? "/seller/create-product" : "/login?redirect=/seller/create-product"}
+                  className="px-6 py-3.5 rounded-full bg-[#00C853] text-black font-heading font-black text-sm border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center gap-2"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>CREATE THE FIRST PRODUCT ↗</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="bg-white border-2 border-black rounded-[32px] p-6 sm:p-8 shadow-[4px_4px_0px_#000000] grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                
+                {/* Left Column: Interactive Product Selection List */}
+                <div className="lg:col-span-5 flex flex-col gap-3">
+                  <div className="text-xs font-mono font-bold text-[#FF5500] uppercase tracking-wider mb-1">
+                    SELECT A PRODUCT TO PREVIEW:
+                  </div>
+
+                  <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    {userProducts.slice(0, 5).map((prod) => {
+                      const prodId = prod._id || prod.id;
+                      const isSelected = selectedProduct && (selectedProduct._id || selectedProduct.id) === prodId;
+                      const priceAmt = prod.price?.amount !== undefined ? prod.price.amount : (prod.priceAmount || 0);
+                      const priceCurr = prod.price?.currency || prod.priceCurrency || "INR";
+
+                      return (
+                        <button
+                          key={prodId}
+                          onClick={() => setSelectedProductId(prodId)}
+                          className={`w-full py-3.5 px-5 rounded-2xl border-2 border-black text-left flex items-center justify-between transition-all font-heading cursor-pointer ${
+                            isSelected
+                              ? "bg-black text-white shadow-[3px_3px_0px_#FF5500] scale-[1.01]"
+                              : "bg-[#F5EBE6] text-black hover:bg-white"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1 mr-3">
+                            <div className="font-extrabold text-base truncate">{prod.title || prod.name}</div>
+                            <div className={`text-xs font-mono font-bold ${isSelected ? "text-[#FFD600]" : "text-[#FF5500]"}`}>
+                              {priceCurr} {Number(priceAmt).toLocaleString()}
+                            </div>
+                          </div>
+                          <span className="text-lg font-bold font-mono">
+                            {isSelected ? "→" : "↗"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Actions for Selected Product */}
+                  {selectedProduct && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t-2 border-black/10">
+                      <Link
+                        to={`/product/${selectedProduct._id || selectedProduct.id}`}
+                        className="flex-1 py-3 px-4 rounded-xl bg-white text-black font-heading font-black text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:bg-black hover:text-white transition-all text-center flex items-center justify-center gap-1"
+                      >
+                        <span>VIEW FULL DETAILS</span>
+                        <ArrowUpRight className="w-4 h-4" />
+                      </Link>
+
+                      <button
+                        onClick={() => addToCart(selectedProduct)}
+                        className="flex-1 py-3 px-4 rounded-xl bg-[#00E676] text-black font-heading font-black text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <span>ADD TO CART</span>
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Selected Product Image Gallery / Slider */}
+                <div className="lg:col-span-7 flex flex-col gap-4">
+                  {selectedProduct && (
+                    <div className="h-[340px] sm:h-[400px] rounded-[24px] overflow-hidden border-2 border-black shadow-[3px_3px_0px_#000000] relative bg-[#FAF4F0]">
+                      <Swiper
+                        modules={[Navigation, Autoplay]}
+                        navigation={true}
+                        autoplay={{ delay: 4000 }}
+                        className="h-full w-full"
+                      >
+                        {getProductImages(selectedProduct).map((imgUrl, idx) => (
+                          <SwiperSlide key={idx} className="h-full w-full">
+                            <img
+                              src={imgUrl}
+                              alt={selectedProduct.title || "Product"}
+                              className="w-full h-full object-cover cursor-pointer"
+                              onClick={() => navigate(`/product/${selectedProduct._id || selectedProduct.id}`)}
+                            />
+                          </SwiperSlide>
+                        ))}
+                      </Swiper>
+                      
+                      {/* Floating Product Badge */}
+                      <Link
+                        to={`/product/${selectedProduct._id || selectedProduct.id}`}
+                        className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm border-2 border-black p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-2 z-10 hover:bg-black hover:text-white transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="font-heading font-extrabold text-sm block truncate">
+                            {selectedProduct.title || selectedProduct.name}
+                          </span>
+                          <span className="font-mono text-[11px] font-bold text-black/60 truncate block">
+                            Seller: {selectedProduct.seller?.username || selectedProduct.seller?.fullName || "Verified Seller"}
+                          </span>
                         </div>
-                      </div>
-                      <span className="text-xl font-bold font-mono">
-                        {isActive ? "→" : "↗"}
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {/* View Details / Book Buttons */}
-                <div className="flex gap-2 mt-2">
-                  <Link
-                    to={`/product/${selectedUnit.id}`}
-                    className="flex-1 py-4 px-4 rounded-full bg-white text-black font-heading font-black text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:bg-black hover:text-white transition-all text-center flex items-center justify-center gap-1"
-                  >
-                    <span>VIEW DETAILS</span>
-                    <ArrowUpRight className="w-4 h-4" />
-                  </Link>
-
-                  <button
-                    onClick={() => addToCart(selectedUnit)}
-                    className="flex-1 py-4 px-4 rounded-full bg-[#00E676] text-black font-heading font-black text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all flex items-center justify-center gap-1"
-                  >
-                    <span>BOOK UNIT</span>
-                    <Plus className="w-4 h-4" />
-                  </button>
+                        <span className="font-heading font-black text-sm text-[#FF5500] flex items-center gap-1">
+                          <span>{selectedProduct.price?.currency || "INR"} {Number(selectedProduct.price?.amount || 0).toLocaleString()}</span>
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </span>
+                      </Link>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              {/* Right Column: Unit Images Slider with Details */}
-              <div className="lg:col-span-8 flex flex-col gap-4">
-                <div className="h-[360px] sm:h-[440px] rounded-[24px] overflow-hidden border-2 border-black shadow-[3px_3px_0px_#000000] relative">
-                  <Swiper
-                    modules={[Navigation, Autoplay]}
-                    navigation={true}
-                    autoplay={{ delay: 3500 }}
-                    className="h-full w-full"
-                  >
-                    {selectedUnit.images.map((imgUrl, idx) => (
-                      <SwiperSlide key={idx} className="h-full w-full">
-                        <img
-                          src={imgUrl}
-                          alt={selectedUnit.name}
-                          className="w-full h-full object-cover cursor-pointer"
-                          onClick={() => navigate(`/product/${selectedUnit.id}`)}
-                        />
-                      </SwiperSlide>
-                    ))}
-                  </Swiper>
-                  
-                  {/* Floating Unit Specifications Badge */}
-                  <Link
-                    to={`/product/${selectedUnit.id}`}
-                    className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm border-2 border-black p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-2 z-10 hover:bg-black hover:text-white transition-colors"
-                  >
-                    <span className="font-heading font-extrabold text-sm">{selectedUnit.name} • {selectedUnit.area}</span>
-                    <span className="font-mono text-xs font-bold flex items-center gap-1">
-                      <span>{selectedUnit.location}</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </span>
-                  </Link>
-                </div>
               </div>
-
-            </div>
+            )}
 
           </section>
 
-          {/* Section 3: "How We Think" Retro Pixel Art Canvas (Image 3 from Screenshots) */}
-          <section id="community" className="bg-[#FFB800] p-4 sm:p-5 rounded-[32px] border-2 border-black shadow-[4px_4px_0px_#000000]">
-            <div className="bg-[#FF3B30] rounded-[24px] border-2 border-black p-8 sm:p-14 text-center relative overflow-hidden flex flex-col items-center justify-center min-h-[300px]">
-              
-              {/* Retro Pixel Smiley Face SVG */}
-              <svg className="w-40 h-40 sm:w-56 sm:h-56 text-[#C4A1FF] mb-4 opacity-90" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M7 2h10v2H7V2zM5 4h2v2H5V4zM17 4h2v2h-2V4zM3 6h2v4H3V6zM19 6h2v4h-2V6zM1 10h2v4H1v-4zM21 10h2v4h-2v-4zM3 14h2v4H3v-4zM19 14h2v4h-2v-4zM5 18h2v2H5v-2zM17 18h2v2h-2v-2zM7 20h10v2H7v-2zM7 8h2v2H7V8zM15 8h2v2h-2V8zM7 14h2v2H7v-2zM9 16h6v2H9v-2zM15 14h2v2h-2v-2z" />
-              </svg>
-
-              <h2 className="font-heading font-black text-4xl sm:text-7xl tracking-tighter text-black uppercase">
-                How we think
-              </h2>
-              <p className="font-mono font-bold text-sm sm:text-base text-white mt-2 max-w-lg">
-                Creating radical spaces and authentic artifacts for independent student living and creators.
-              </p>
-            </div>
-          </section>
-
-          {/* Section 4: Live E-Commerce Catalog (Products & Artifacts) */}
+          {/* Section 2: Complete User Products Catalog */}
           <section id="catalog" className="flex flex-col gap-6 mt-4">
             
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2 border-black">
               <div>
                 <span className="text-xs font-mono font-bold text-[#1677FF] uppercase tracking-widest">
-                  CURATED STOREFRONT
+                  STOREFRONT REGISTRY
                 </span>
                 <h2 className="font-heading font-black text-3xl sm:text-4xl text-black">
-                  Snitch Artifacts & Living Spaces
+                  All User Products ({userProducts.length})
                 </h2>
               </div>
 
@@ -683,7 +585,7 @@ export default function App() {
                 <Search className="w-4 h-4 text-black absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search units or artifacts..."
+                  placeholder="Search user products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2.5 units-input text-xs font-mono w-full sm:w-64"
@@ -691,81 +593,127 @@ export default function App() {
               </div>
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2">
-              {["All", "Living Units", "Artifacts", "Tech Ecosystem"].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-5 py-2.5 rounded-full font-heading font-extrabold text-xs border-2 border-black transition-all ${
-                    selectedCategory === cat
-                      ? "bg-black text-white shadow-[2px_2px_0px_#FF5500]"
-                      : "bg-white text-black hover:bg-[#F5EBE6]"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Product Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((item) => {
-                const prodId = item._id || item.id;
-                return (
-                  <div
-                    key={prodId}
-                    className="bg-white border-2 border-black rounded-[28px] p-5 shadow-[3px_3px_0px_#000000] flex flex-col justify-between hover:translate-x-[1px] hover:translate-y-[1px] transition-all group"
+            {/* Category Filter Pills (if any categories exist) */}
+            {productCategories.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                {productCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-5 py-2.5 rounded-full font-heading font-extrabold text-xs border-2 border-black transition-all cursor-pointer ${
+                      selectedCategory === cat
+                        ? "bg-black text-white shadow-[2px_2px_0px_#FF5500]"
+                        : "bg-white text-black hover:bg-[#F5EBE6]"
+                    }`}
                   >
-                    <div>
-                      <Link to={`/product/${prodId}`} className="block h-56 rounded-[20px] overflow-hidden border-2 border-black mb-4 relative">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <span className={`absolute top-3 left-3 px-3 py-1 rounded-full font-mono text-[10px] font-bold border border-black ${item.badgeColor || 'bg-black text-white'}`}>
-                          {item.badge}
-                        </span>
-                      </Link>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
 
-                      <span className="text-[11px] font-mono font-bold text-black/60 uppercase">{item.category}</span>
-                      <Link to={`/product/${prodId}`} className="block">
-                        <h3 className="font-heading font-black text-xl text-black mt-0.5 mb-1 hover:text-[#FF5500] transition-colors">
-                          {item.name}
-                        </h3>
-                      </Link>
-                      <p className="text-xs font-semibold text-black/70 mb-4">{item.specs}</p>
-                    </div>
+            {/* Products Grid */}
+            {productsLoading ? (
+              <CardSkeleton count={6} />
+            ) : filteredProducts.length === 0 ? (
+              <div className="bg-white border-2 border-black rounded-[32px] p-12 text-center shadow-[3px_3px_0px_#000000]">
+                <Package className="w-12 h-12 mx-auto mb-3 text-black/40" />
+                <h3 className="font-heading font-black text-xl mb-1">No products match your search</h3>
+                <p className="font-mono text-xs text-black/60">Try searching for a different keyword or view all products.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map((prod) => {
+                  const prodId = prod._id || prod.id;
+                  const prodTitle = prod.title || prod.name || "Product";
+                  const prodPrice = `${prod.price?.currency || prod.priceCurrency || "INR"} ${Number(prod.price?.amount || prod.priceAmount || 0).toLocaleString()}`;
+                  const prodDesc = prod.description || "Authentic Snitch product created by verified seller.";
+                  const prodImg = getProductImage(prod);
+                  const sellerName = prod.seller?.username || prod.seller?.fullName || "Verified Seller";
 
-                    <div className="flex items-center justify-between pt-3 border-t-2 border-black/10 gap-2">
-                      <span className="font-heading font-black text-lg text-[#FF5500]">{item.price}</span>
-                      <div className="flex items-center gap-1.5">
-                        <Link
-                          to={`/product/${prodId}`}
-                          className="px-3 py-2 rounded-xl bg-white text-black font-heading font-bold text-xs border border-black hover:bg-[#F5EBE6]"
-                        >
-                          View
+                  return (
+                    <div
+                      key={prodId}
+                      className="bg-white border-2 border-black rounded-[28px] p-5 shadow-[3px_3px_0px_#000000] flex flex-col justify-between hover:translate-x-[1px] hover:translate-y-[1px] transition-all group"
+                    >
+                      <div>
+                        <Link to={`/product/${prodId}`} className="block h-56 rounded-[20px] overflow-hidden border-2 border-black mb-4 relative bg-[#FAF5EE]">
+                          <img
+                            src={prodImg}
+                            alt={prodTitle}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <span className="absolute top-3 left-3 px-3 py-1 rounded-full font-mono text-[10px] font-bold border border-black bg-[#1677FF] text-white shadow-[1px_1px_0px_#000000]">
+                            {sellerName}
+                          </span>
                         </Link>
-                        <button
-                          onClick={() => addToCart(item)}
-                          className="px-4 py-2 rounded-xl bg-black text-white font-heading font-extrabold text-xs hover:bg-[#00C853] hover:text-black transition-colors flex items-center gap-1"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>SELECT</span>
-                        </button>
+
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-mono font-bold text-[#FF5500] uppercase tracking-wider">
+                            {prod.category || "PRODUCT"}
+                          </span>
+                          {prod.variants && prod.variants.length > 0 && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#FFD600] border border-black font-mono text-[9px] font-bold">
+                              {prod.variants.length} {prod.variants.length === 1 ? 'OPTION' : 'OPTIONS'}
+                            </span>
+                          )}
+                        </div>
+
+                        <Link to={`/product/${prodId}`} className="block">
+                          <h3 className="font-heading font-black text-xl text-black mt-0.5 mb-1 hover:text-[#FF5500] transition-colors truncate">
+                            {prodTitle}
+                          </h3>
+                        </Link>
+                        <p className="text-xs font-semibold text-black/70 mb-4 line-clamp-2">{prodDesc}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t-2 border-black/10 gap-2">
+                        <span className="font-heading font-black text-lg text-[#FF5500]">{prodPrice}</span>
+                        <div className="flex items-center gap-1.5">
+                          <Link
+                            to={`/product/${prodId}`}
+                            className="px-3 py-2 rounded-xl bg-white text-black font-heading font-bold text-xs border border-black hover:bg-[#F5EBE6]"
+                          >
+                            View
+                          </Link>
+                          <button
+                            onClick={() => addToCart(prod)}
+                            className="px-4 py-2 rounded-xl bg-black text-white font-heading font-extrabold text-xs hover:bg-[#00C853] hover:text-black transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>SELECT</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
+          </section>
+
+          {/* Section 3: "How We Think" Retro Pixel Art Canvas */}
+          <section id="community" className="bg-[#FFB800] p-4 sm:p-5 rounded-[32px] border-2 border-black shadow-[4px_4px_0px_#000000]">
+            <div className="bg-[#FF3B30] rounded-[24px] border-2 border-black p-8 sm:p-14 text-center relative overflow-hidden flex flex-col items-center justify-center min-h-[300px]">
+              
+              {/* Retro Pixel Smiley Face SVG */}
+              <svg className="w-36 h-36 sm:w-48 sm:h-48 text-[#C4A1FF] mb-4 opacity-90" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 2h10v2H7V2zM5 4h2v2H5V4zM17 4h2v2h-2V4zM3 6h2v4H3V6zM19 6h2v4h-2V6zM1 10h2v4H1v-4zM21 10h2v4h-2v-4zM3 14h2v4H3v-4zM19 14h2v4h-2v-4zM5 18h2v2H5v-2zM17 18h2v2h-2v-2zM7 20h10v2H7v-2zM7 8h2v2H7V8zM15 8h2v2h-2V8zM7 14h2v2H7v-2zM9 16h6v2H9v-2zM15 14h2v2h-2v-2z" />
+              </svg>
+
+              <h2 className="font-heading font-black text-4xl sm:text-6xl tracking-tighter text-black uppercase">
+                How we think
+              </h2>
+              <p className="font-mono font-bold text-sm sm:text-base text-white mt-2 max-w-lg">
+                Creating radical commerce protocols and direct merchant artifacts for creators and independent sellers.
+              </p>
+            </div>
           </section>
 
           {/* Snitch Footer */}
           <footer className="mt-12 pt-8 pb-6 border-t-2 border-black flex flex-col sm:flex-row items-center justify-between text-xs font-mono font-bold text-black gap-4">
-            <div>© {new Date().getFullYear()} SNITCH ARCHITECTURAL COMMERCE. ALL RIGHTS RESERVED.</div>
+            <div>© {new Date().getFullYear()} SNITCH COMMERCE SYSTEM. ALL RIGHTS RESERVED.</div>
             <div className="flex items-center gap-6">
               <a href="#" className="hover:underline">PRIVACY POLICY</a>
               <a href="#" className="hover:underline">TERMS</a>
