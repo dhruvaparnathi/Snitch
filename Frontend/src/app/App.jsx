@@ -219,8 +219,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F5EBE6] text-black font-body selection:bg-[#FF5500] selection:text-white relative">
       
-      {/* Full-Screen Awwwards Buyer Loader */}
-      {showLoader && <BuyerLoader onComplete={() => setShowLoader(false)} duration={1.6} />}
+      {/* Cozy Pixelated Buyer Loader */}
+      {showLoader && <BuyerLoader onComplete={() => setShowLoader(false)} duration={0.8} />}
       
       {/* Toast Alert */}
       {toastMessage && (

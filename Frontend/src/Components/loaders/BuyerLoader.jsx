@@ -1,117 +1,236 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import gsap from "gsap";
+import { Sparkles, Heart } from "lucide-react";
 
-export default function BuyerLoader({ onComplete, duration = 1.8 }) {
+// 12x12 Cozy Pixel Art Matrices
+// 0: transparent, 1: black outline/feature, 2: warm highlight/skin, 3: blush peach, 4: eye sparkle
+const COZY_PIXEL_FRAMES = {
+  SMILE: [
+    [0,0,0,1,1,1,1,1,1,0,0,0],
+    [0,0,1,2,2,2,2,2,2,1,0,0],
+    [0,1,2,2,2,2,2,2,2,2,1,0],
+    [1,2,2,1,1,2,2,1,1,2,2,1],
+    [1,2,2,1,4,2,2,1,4,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,3,3,2,1,1,2,3,3,2,1],
+    [1,2,3,3,1,2,2,1,3,3,2,1],
+    [0,1,2,2,2,1,1,2,2,2,1,0],
+    [0,1,2,2,2,2,2,2,2,2,1,0],
+    [0,0,1,2,2,2,2,2,2,1,0,0],
+    [0,0,0,1,1,1,1,1,1,0,0,0],
+  ],
+  WINK: [
+    [0,0,0,1,1,1,1,1,1,0,0,0],
+    [0,0,1,2,2,2,2,2,2,1,0,0],
+    [0,1,2,2,2,2,2,2,2,2,1,0],
+    [1,2,1,1,1,2,2,1,1,2,2,1],
+    [1,2,2,2,2,2,2,1,4,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,3,3,2,1,1,2,3,3,2,1],
+    [1,2,3,3,1,2,2,1,3,3,2,1],
+    [0,1,2,2,2,1,1,2,2,2,1,0],
+    [0,1,2,2,2,2,2,2,2,2,1,0],
+    [0,0,1,2,2,2,2,2,2,1,0,0],
+    [0,0,0,1,1,1,1,1,1,0,0,0],
+  ],
+  HAPPY_SLEEP: [
+    [0,0,0,1,1,1,1,1,1,0,0,0],
+    [0,0,1,2,2,2,2,2,2,1,0,0],
+    [0,1,2,2,2,2,2,2,2,2,1,0],
+    [1,2,1,2,1,2,2,1,2,1,2,1],
+    [1,2,2,1,2,2,2,2,1,2,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,3,3,2,1,1,2,3,3,2,1],
+    [1,2,3,3,1,2,2,1,3,3,2,1],
+    [0,1,2,2,2,1,1,2,2,2,1,0],
+    [0,1,2,2,2,2,2,2,2,2,1,0],
+    [0,0,1,2,2,2,2,2,2,1,0,0],
+    [0,0,0,1,1,1,1,1,1,0,0,0],
+  ]
+};
+
+const COZY_PHRASES = [
+  "warming up the loft...",
+  "brewing fresh pixels...",
+  "fluffing the pillows...",
+  "welcome home."
+];
+
+export default function BuyerLoader({ onComplete, duration = 0.85 }) {
+  // Enforce a snappy duration so it never feels lengthy
+  const effectiveDuration = Math.min(Math.max(duration, 0.6), 1.0);
   const [progress, setProgress] = useState(0);
-  const [tickerText, setTickerText] = useState("INITIALIZING SNITCH MESH");
+  const [frameKey, setFrameKey] = useState("SMILE");
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [isWinking, setIsWinking] = useState(false);
+  const loaderRef = useRef(null);
 
-  const phrases = [
-    "INITIALIZING SNITCH MESH",
-    "CURATING ARCHITECTURAL UNITS",
-    "CALIBRATING KEYLESS SMART ACCESS",
-    "VERIFYING RESIDENT PROTOCOL",
-    "WELCOME TO SNITCH"
-  ];
+  // Chunky 10-step progress calculation (0 to 10 blocks)
+  const totalBlocks = 10;
+  const activeBlocks = Math.min(totalBlocks, Math.ceil((progress / 100) * totalBlocks));
 
   useEffect(() => {
-    let currentProgress = 0;
+    let currentVal = 0;
+    const stepTime = (effectiveDuration * 1000) / 20;
+
     const interval = setInterval(() => {
-      currentProgress += 2;
-      if (currentProgress > 100) {
-        currentProgress = 100;
+      currentVal += 5;
+      if (currentVal >= 100) {
+        currentVal = 100;
         clearInterval(interval);
       }
-      setProgress(currentProgress);
+      setProgress(currentVal);
 
-      const phraseIdx = Math.min(
-        Math.floor((currentProgress / 100) * phrases.length),
-        phrases.length - 1
+      // Rotate cozy phrase based on progress
+      const pIdx = Math.min(
+        Math.floor((currentVal / 100) * COZY_PHRASES.length),
+        COZY_PHRASES.length - 1
       );
-      setTickerText(phrases[phraseIdx]);
-    }, (duration * 1000) / 50);
+      setPhraseIdx(pIdx);
 
+      // Cute expression transitions
+      if (currentVal > 30 && currentVal < 70) {
+        setFrameKey("WINK");
+      } else if (currentVal >= 70) {
+        setFrameKey("HAPPY_SLEEP");
+      } else {
+        setFrameKey("SMILE");
+      }
+    }, stepTime);
+
+    // Fast, delightful GSAP exit animation
     const tl = gsap.timeline({
-      delay: duration,
+      delay: effectiveDuration,
       onComplete: () => {
         if (onComplete) onComplete();
       }
     });
 
-    // Awwwards multi-colored curtain slide-up reveal
-    tl.to(".buyer-loader-content", {
-      y: -40,
-      opacity: 0,
-      duration: 0.4,
-      ease: "power2.in"
+    tl.to(".cozy-loader-card", {
+      scale: 1.04,
+      duration: 0.12,
+      ease: "power1.out"
     })
-      .to(".curtain-1", { yPercent: -100, duration: 0.6, ease: "power4.inOut" }, "-=0.1")
-      .to(".curtain-2", { yPercent: -100, duration: 0.6, ease: "power4.inOut" }, "-=0.45")
-      .to(".curtain-3", { yPercent: -100, duration: 0.6, ease: "power4.inOut" }, "-=0.45")
-      .to(".curtain-main", { yPercent: -100, duration: 0.7, ease: "power4.inOut" }, "-=0.45");
+      .to(".cozy-loader-card", {
+        scale: 0.88,
+        opacity: 0,
+        y: -20,
+        duration: 0.22,
+        ease: "power2.in"
+      })
+      .to(loaderRef.current, {
+        opacity: 0,
+        duration: 0.18,
+        ease: "power1.inOut"
+      }, "-=0.1");
 
     return () => clearInterval(interval);
-  }, [duration, onComplete]);
+  }, [effectiveDuration, onComplete]);
+
+  const handleMascotClick = () => {
+    setIsWinking(true);
+    setFrameKey("WINK");
+    setTimeout(() => {
+      setIsWinking(false);
+      setFrameKey("SMILE");
+    }, 400);
+  };
+
+  const currentMatrix = COZY_PIXEL_FRAMES[frameKey] || COZY_PIXEL_FRAMES.SMILE;
 
   return (
-    <div className="fixed inset-0 z-[9999] pointer-events-auto flex items-center justify-center overflow-hidden">
-      
-      {/* Layered Multi-Colored Sliding Curtains */}
-      <div className="curtain-1 absolute inset-0 bg-[#FF5500] z-10" />
-      <div className="curtain-2 absolute inset-0 bg-[#FFD600] z-20" />
-      <div className="curtain-3 absolute inset-0 bg-[#1677FF] z-30" />
-      <div className="curtain-main absolute inset-0 bg-[#F5EBE6] z-40 flex flex-col justify-between p-6 sm:p-12">
+    <div
+      ref={loaderRef}
+      className="fixed inset-0 z-[9999] pointer-events-auto flex items-center justify-center bg-[#F5EBE6]/90 backdrop-blur-md p-4 select-none overflow-hidden"
+    >
+      {/* Floating Cozy Ambient Pixel Confetti */}
+      <div className="absolute top-12 left-12 text-[#FF5500]/30 font-mono text-2xl font-black animate-pulse">✦</div>
+      <div className="absolute top-20 right-16 text-[#FFD600]/40 font-mono text-3xl font-black animate-bounce">■</div>
+      <div className="absolute bottom-16 left-16 text-[#C4A1FF]/40 font-mono text-2xl font-black animate-bounce">▲</div>
+      <div className="absolute bottom-12 right-12 text-[#00C853]/30 font-mono text-3xl font-black animate-pulse">✦</div>
+
+      {/* Main Cozy Pixel Bento Box */}
+      <div className="cozy-loader-card w-full max-w-sm bg-[#FAF5EE] border-3 border-black rounded-[32px] p-6 sm:p-7 shadow-[6px_6px_0px_#000000] flex flex-col items-center text-center relative">
         
-        {/* Top Header */}
-        <div className="buyer-loader-content flex items-center justify-between">
-          <div className="flex items-baseline">
-            <span className="font-heading font-black text-3xl sm:text-4xl text-black">
+        {/* Top Header Pill Row */}
+        <div className="w-full flex items-center justify-between pb-3.5 mb-4 border-b-2 border-black/10">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 bg-[#FF5500] rounded-sm border border-black" />
+            <span className="font-heading font-black text-base text-black tracking-tight">
               snitch<span className="text-[#FF5500]">.</span>
             </span>
-            <span className="text-[9px] font-mono font-bold tracking-widest text-black/70 ml-2 uppercase">
-              STOREFRONT SYSTEM
-            </span>
           </div>
 
-          <div className="bg-black text-[#00E676] px-3.5 py-1.5 rounded-full font-mono text-xs font-bold border border-black flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#00E676] animate-ping" />
-            <span>ONLINE</span>
+          <div className="flex items-center gap-1.5 bg-[#FFD600] border-2 border-black px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black shadow-[1.5px_1.5px_0px_#000000]">
+            <Sparkles className="w-3 h-3 text-black" />
+            <span>COZY RESIDENT</span>
           </div>
         </div>
 
-        {/* Center Pixel Art & Counter Animation */}
-        <div className="buyer-loader-content my-auto flex flex-col items-center text-center max-w-lg mx-auto">
-          
-          {/* Retro Pixel Smiley Icon */}
-          <div className="w-24 h-24 sm:w-32 sm:h-32 mb-6 bg-[#C4A1FF] border-2 border-black rounded-[28px] shadow-[4px_4px_0px_#000000] p-4 flex items-center justify-center animate-bounce">
-            <svg className="w-full h-full text-black" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7 2h10v2H7V2zM5 4h2v2H5V4zM17 4h2v2h-2V4zM3 6h2v4H3V6zM19 6h2v4h-2V6zM1 10h2v4H1v-4zM21 10h2v4h-2v-4zM3 14h2v4H3v-4zM19 14h2v4h-2v-4zM5 18h2v2H5v-2zM17 18h2v2h-2v-2zM7 20h10v2H7v-2zM7 8h2v2H7V8zM15 8h2v2h-2V8zM7 14h2v2H7v-2zM9 16h6v2H9v-2zM15 14h2v2h-2v-2z" />
-            </svg>
+        {/* Mascot Container with Pixel Art Grid */}
+        <div
+          onClick={handleMascotClick}
+          className="relative group cursor-pointer my-2 p-3 bg-[#C4A1FF] border-2 border-black rounded-2xl shadow-[3px_3px_0px_#000000] hover:scale-105 active:scale-95 transition-transform"
+          title="Click to say hello!"
+        >
+          {/* Animated Steam / Heart above */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 opacity-90 animate-bounce">
+            <span className="text-[10px] text-[#FF5500] font-black">♥</span>
           </div>
 
-          {/* Chunky Counter */}
-          <div className="font-heading font-black text-6xl sm:text-8xl text-black tracking-tighter mb-2">
-            {progress < 10 ? `0${progress}` : progress}
-            <span className="text-[#FF5500] text-4xl sm:text-6xl font-black">%</span>
-          </div>
+          {/* 12x12 Pixel Grid Matrix */}
+          <div
+            className="grid grid-cols-12 gap-[2px] w-28 h-28 sm:w-32 sm:h-32"
+            style={{ gridTemplateColumns: "repeat(12, minmax(0, 1fr))" }}
+          >
+            {currentMatrix.map((row, rIdx) =>
+              row.map((val, cIdx) => {
+                let cellClass = "bg-transparent";
+                if (val === 1) cellClass = "bg-black border-[0.5px] border-black/40";
+                if (val === 2) cellClass = "bg-[#FFF9E6]";
+                if (val === 3) cellClass = "bg-[#FF8A80]";
+                if (val === 4) cellClass = "bg-white";
 
-          {/* Progress Bar Bento */}
-          <div className="w-full h-4 bg-white border-2 border-black rounded-full overflow-hidden p-0.5 shadow-[2px_2px_0px_#000000] mb-4">
-            <div
-              className="h-full bg-[#FF5500] rounded-full transition-all duration-75"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-
-          {/* Subtext Ticker */}
-          <div className="px-4 py-1.5 rounded-full bg-white border-2 border-black shadow-[2px_2px_0px_#000000] font-mono font-bold text-xs text-black uppercase tracking-wider">
-            {tickerText}
+                return (
+                  <div
+                    key={`${rIdx}-${cIdx}`}
+                    className={`w-full h-full rounded-[1px] ${cellClass}`}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="buyer-loader-content flex items-center justify-between text-xs font-mono font-bold text-black/70">
-          <span>CURATED ARCHITECTURAL LIVING</span>
-          <span>© 2026 SNITCH PROTOCOL</span>
+        {/* Pixel Percentage Counter */}
+        <div className="font-heading font-black text-4xl sm:text-5xl text-black tracking-tight mt-3 mb-1 flex items-baseline justify-center gap-0.5">
+          <span>{progress < 10 ? `0${progress}` : progress}</span>
+          <span className="text-[#FF5500] text-2xl font-black font-mono">%</span>
+        </div>
+
+        {/* Pixelated Stepped Progress Bar */}
+        <div className="w-full mt-2 mb-3">
+          <div className="flex gap-1.5 justify-between bg-white border-2 border-black rounded-xl p-1.5 shadow-[2px_2px_0px_#000000]">
+            {Array.from({ length: totalBlocks }).map((_, idx) => {
+              const isFilled = idx < activeBlocks;
+              return (
+                <div
+                  key={idx}
+                  className={`flex-1 h-3 rounded-[3px] border border-black/40 transition-all duration-100 ${
+                    isFilled
+                      ? "bg-[#00C853] shadow-[1px_1px_0px_#000000]"
+                      : "bg-[#F0EBE1]"
+                  }`}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Cozy Status Micro-Copy */}
+        <div className="font-mono font-bold text-xs text-black/80 flex items-center justify-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#00C853] animate-ping" />
+          <span className="lowercase">{COZY_PHRASES[phraseIdx]}</span>
         </div>
 
       </div>
