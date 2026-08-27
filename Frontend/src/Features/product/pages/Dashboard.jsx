@@ -12,9 +12,12 @@ import {
   Search,
   RefreshCw,
   Edit3,
+  Trash2,
   CheckCircle2,
   Globe,
-  Eye
+  Eye,
+  AlertTriangle,
+  X
 } from "lucide-react";
 import { useLenis } from "../../../assets/useLenis";
 import { useProduct } from "../hook/useProduct";
@@ -25,10 +28,12 @@ import { TableRowSkeleton } from "../../../Components/loaders/BentoSkeleton.jsx"
 export default function Dashboard() {
   useLenis();
   const { user } = useSelector((state) => state.auth);
-  const { products, loading, handleGetSellerProducts } = useProduct();
+  const { products, loading, handleGetSellerProducts, handleDeleteProduct } = useProduct();
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState(null);
   const [showInitialLoader, setShowInitialLoader] = useState(true);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     handleGetSellerProducts().catch(() => {});
@@ -46,6 +51,22 @@ export default function Dashboard() {
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    try {
+      setIsDeleting(true);
+      const prodId = productToDelete._id || productToDelete.id;
+      const prodTitle = productToDelete.title || productToDelete.name || "Product";
+      await handleDeleteProduct(prodId);
+      triggerToast(`"${prodTitle}" removed from inventory.`);
+      setProductToDelete(null);
+    } catch (err) {
+      triggerToast(err.message || "Failed to remove product");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const filteredProducts = (products || []).filter((p) => {
@@ -66,11 +87,56 @@ export default function Dashboard() {
       {showInitialLoader && (
         <SellerLoader onComplete={() => setShowInitialLoader(false)} duration={1.5} />
       )}
+      
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white animate-bounce font-heading font-bold text-sm">
           <CheckCircle2 className="w-5 h-5 text-[#00C853]" />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {productToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-black rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-[6px_6px_0px_#FF3B30] relative animate-in fade-in zoom-in-95">
+            <button
+              onClick={() => setProductToDelete(null)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-black/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            
+            <div className="w-12 h-12 rounded-2xl bg-[#FF3B30]/10 border-2 border-[#FF3B30] flex items-center justify-center mb-4 text-[#FF3B30]">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <h3 className="font-heading font-black text-2xl text-black mb-2">
+              Remove Product Unit?
+            </h3>
+            <p className="text-xs font-mono font-bold text-black/70 mb-6">
+              Are you sure you want to delete <span className="text-black font-black">"{productToDelete.title || productToDelete.name}"</span>? This will permanently remove it and all its variants from the Snitch storefront.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setProductToDelete(null)}
+                className="flex-1 py-3 rounded-full bg-white text-black font-heading font-extrabold text-xs border-2 border-black hover:bg-black/5 transition-colors cursor-pointer"
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDelete}
+                className="flex-1 py-3 rounded-full bg-[#FF3B30] text-white font-heading font-black text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:bg-red-700 transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? "DELETING..." : "CONFIRM DELETE"}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -264,11 +330,19 @@ export default function Dashboard() {
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </Link>
-                            <button
-                              onClick={() => triggerToast(`Editing "${p.title || p.name}"`)}
+                            <Link
+                              to={`/seller/edit-product/${p._id}`}
                               className="p-2 rounded-xl bg-[#F5EBE6] text-black border border-black hover:bg-black hover:text-white transition-colors"
+                              title="Edit Product Unit"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
+                            </Link>
+                            <button
+                              onClick={() => setProductToDelete(p)}
+                              className="p-2 rounded-xl bg-[#FF3B30]/10 text-[#FF3B30] border border-[#FF3B30]/30 hover:bg-[#FF3B30] hover:text-white transition-colors cursor-pointer"
+                              title="Remove Product"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>

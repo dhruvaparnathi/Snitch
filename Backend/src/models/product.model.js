@@ -1,15 +1,19 @@
 import mongoose from "mongoose";
 import priceSchema from "./price.schema.js";
 
+const imageSubSchema = new mongoose.Schema({
+    url: {
+        type: String,
+        required: true,
+    },
+    alt: {
+        type: String,
+        default: "Product image",
+    }
+});
+
 const variantSchema = new mongoose.Schema({
-    images: [{
-        url: {
-            type: String,
-        },
-        alt: {
-            type: String,
-        }
-    }],
+    images: [imageSubSchema],
     stock: {
         type: Number,
         default: 0,
@@ -21,7 +25,7 @@ const variantSchema = new mongoose.Schema({
     prices: {
         type: priceSchema
     }
-}, { _id: false });
+});
 
 const productSchema = new mongoose.Schema({
     title: {
@@ -31,6 +35,10 @@ const productSchema = new mongoose.Schema({
     description: {
         type: String,
         required: true,
+    },
+    category: {
+        type: String,
+        default: "Living Units",
     },
     price: {
         type: priceSchema,
@@ -46,18 +54,8 @@ const productSchema = new mongoose.Schema({
         ref: "User",
         required: true,
     },
-    Images: [
-        {
-            url: {
-                type: String,
-                required: true,
-            },
-            alt: {
-                type: String,
-                required: true,
-            },
-        }
-    ]
+    Images: [imageSubSchema],
+    images: [imageSubSchema]
 }, { timestamps: true });
 
 const productModel = mongoose.model("Product", productSchema);

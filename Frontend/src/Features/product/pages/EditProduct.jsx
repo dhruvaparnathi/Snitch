@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
   Plus,
@@ -9,9 +9,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Layers,
-  Sparkles,
-  Sliders,
-  Image as ImageIcon,
+  Save,
+  AlertTriangle,
   X
 } from "lucide-react";
 import { useLenis } from "../../../assets/useLenis";
@@ -19,10 +18,15 @@ import { useProduct } from "../hook/useProduct";
 import gsap from "gsap";
 import SellerLoader from "../../../Components/loaders/SellerLoader.jsx";
 
-export default function CreateProduct() {
+export default function EditProduct() {
   useLenis();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { handleCreateProduct, loading, error } = useProduct();
+  const { handleGetSingleProduct, handleUpdateProduct, handleDeleteProduct, loading, error } = useProduct();
+
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Primary Product State
   const [formData, setFormData] = useState({
@@ -35,31 +39,87 @@ export default function CreateProduct() {
     images: [],
   });
 
-  // Multiple Main Images State
+  // Multiple Main Images State (includes both existing and newly added photos)
   const [previewImages, setPreviewImages] = useState([]);
   const [activePreviewImgIdx, setActivePreviewImgIdx] = useState(0);
 
   // Variants State
   const [hasVariants, setHasVariants] = useState(false);
-  const [variants, setVariants] = useState([
-    {
-      id: "var-1",
-      stock: 5,
-      priceAmount: "",
-      priceCurrency: "INR",
-      attributes: [
-        { key: "Color", val: "Obsidian Black" },
-        { key: "Size", val: "Studio 28m²" }
-      ],
-      image: null,
-      previewUrl: null
-    }
-  ]);
+  const [variants, setVariants] = useState([]);
 
   const [selectedPreviewVariantIdx, setSelectedPreviewVariantIdx] = useState(0);
   const [toastMessage, setToastMessage] = useState(null);
 
+  // Fetch and prefill existing product details
   useEffect(() => {
+    let isMounted = true;
+    const fetchProduct = async () => {
+      try {
+        setInitialLoading(true);
+        const res = await handleGetSingleProduct(id);
+        const prod = res.product || res;
+        if (isMounted && prod) {
+          setFormData({
+            name: prod.title || prod.name || "",
+            description: prod.description || "",
+            category: prod.category || "Living Units",
+            priceAmount: prod.price?.amount !== undefined ? prod.price.amount : (prod.priceAmount || ""),
+            priceCurrency: prod.price?.currency || prod.priceCurrency || "INR",
+            stockQuantity: prod.stock !== undefined ? prod.stock : (prod.stockQuantity || 1),
+            images: [],
+          });
+
+          // Preload Existing Images
+          const existingImgs = (prod.Images && prod.Images.length > 0)
+            ? prod.Images.map((i) => ({ url: typeof i === "string" ? i : i.url, isExisting: true }))
+            : (prod.images && prod.images.length > 0)
+            ? prod.images.map((i) => ({ url: typeof i === "string" ? i : i.url, isExisting: true }))
+            : [];
+          setPreviewImages(existingImgs);
+
+          // Preload Existing Variants
+          if (Array.isArray(prod.variants) && prod.variants.length > 0) {
+            setHasVariants(true);
+            const normalizedVars = prod.variants.map((v, idx) => {
+              let attrs = [];
+              if (Array.isArray(v.attributes)) {
+                attrs = v.attributes;
+              } else if (v.attributes instanceof Map) {
+                attrs = Array.from(v.attributes.entries()).map(([k, val]) => ({ key: k, val }));
+              } else if (v.attributes && typeof v.attributes === "object") {
+                attrs = Object.entries(v.attributes).map(([k, val]) => ({ key: k, val }));
+              }
+
+              const vImg = v.images?.[0]?.url ||
+                (typeof v.images?.[0] === "string" ? v.images[0] : null) ||
+                (typeof v.image === "string" ? v.image : v.image?.url) ||
+                null;
+
+              return {
+                _id: v._id,
+                id: v._id || `var-${idx}`,
+                stock: v.stock !== undefined ? v.stock : 0,
+                priceAmount: v.prices?.amount !== undefined ? v.prices.amount : (v.priceAmount || ""),
+                priceCurrency: v.prices?.currency || v.priceCurrency || "INR",
+                attributes: attrs.length > 0 ? attrs : [{ key: "Color", val: "" }, { key: "Size", val: "" }],
+                image: null,
+                previewUrl: vImg && !vImg.startsWith("blob:") ? vImg : null
+              };
+            });
+            setVariants(normalizedVars);
+          } else {
+            setHasVariants(false);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load product details:", err);
+      } finally {
+        if (isMounted) setInitialLoading(false);
+      }
+    };
+
+    fetchProduct();
+
     gsap.from(".form-anim", {
       y: 30,
       opacity: 0,
@@ -68,9 +128,13 @@ export default function CreateProduct() {
       ease: "power3.out",
       clearProps: "all"
     });
-  }, []);
 
-  // Handle Multi-file Upload for Main Photos
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  // Handle Multi-file Upload for New Main Photos
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
@@ -81,7 +145,8 @@ export default function CreateProduct() {
 
       const newPreviewItems = files.map((file) => ({
         file,
-        url: URL.createObjectURL(file)
+        url: URL.createObjectURL(file),
+        isExisting: false
       }));
 
       setPreviewImages((prev) => [...prev, ...newPreviewItems]);
@@ -89,11 +154,16 @@ export default function CreateProduct() {
   };
 
   const removePhoto = (idx) => {
+    const target = previewImages[idx];
     setPreviewImages((prev) => prev.filter((_, i) => i !== idx));
-    setFormData((prev) => ({
-      ...prev,
-      images: (prev.images || []).filter((_, i) => i !== idx)
-    }));
+
+    if (!target.isExisting && target.file) {
+      setFormData((prev) => ({
+        ...prev,
+        images: (prev.images || []).filter((f) => f !== target.file)
+      }));
+    }
+
     if (activePreviewImgIdx >= previewImages.length - 1) {
       setActivePreviewImgIdx(Math.max(0, previewImages.length - 2));
     }
@@ -179,7 +249,14 @@ export default function CreateProduct() {
     }
 
     try {
+      // Gather preserved existing photos
+      const existingImages = previewImages
+        .filter((img) => img.isExisting && img.url)
+        .map((img) => ({ url: img.url, alt: formData.name }));
+
+      // Clean up variants to ensure proper attributes formatting
       const cleanVariants = hasVariants ? variants.map((v) => ({
+        _id: v._id && String(v._id).length === 24 ? v._id : undefined,
         stock: v.stock !== undefined ? Number(v.stock) : 0,
         priceAmount: v.priceAmount !== undefined && v.priceAmount !== "" ? v.priceAmount : formData.priceAmount,
         priceCurrency: v.priceCurrency || formData.priceCurrency || "INR",
@@ -188,22 +265,41 @@ export default function CreateProduct() {
           : v.attributes,
         image: v.image,
         previewUrl: v.previewUrl && !v.previewUrl.startsWith("blob:") ? v.previewUrl : null
-      })) : undefined;
+      })) : [];
 
       const payload = {
         ...formData,
+        existingImages,
         hasVariants,
         variants: cleanVariants
       };
-      await handleCreateProduct(payload);
-      setToastMessage("Product & Photos registered in Snitch catalog!");
+
+      await handleUpdateProduct(id, payload);
+      setToastMessage("Product & variants updated successfully!");
       setTimeout(() => {
         navigate("/seller/dashboard");
       }, 1000);
     } catch (err) {
-      const errorMsg = err.response?.data?.message || err.message || "Failed to create product";
+      const errorMsg = err.response?.data?.message || err.message || "Failed to update product";
       setToastMessage(errorMsg);
       setTimeout(() => setToastMessage(null), 3500);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true);
+      await handleDeleteProduct(id);
+      setToastMessage("Product permanently removed from inventory.");
+      setTimeout(() => {
+        navigate("/seller/dashboard");
+      }, 1000);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message || "Failed to remove product";
+      setToastMessage(errorMsg);
+      setShowDeleteModal(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -219,13 +315,57 @@ export default function CreateProduct() {
   return (
     <div className="min-h-screen bg-[#F5EBE6] text-black font-body selection:bg-[#FF5500] selection:text-white relative p-4 sm:p-6 lg:p-8">
       {/* High-Velocity Seller Publishing Loader */}
-      {loading && <SellerLoader duration={2.2} subtitle="REGISTERING UNIT WITH SNITCH MESH..." />}
+      {(loading || initialLoading) && <SellerLoader duration={2.2} subtitle={initialLoading ? "FETCHING UNIT SPECIFICATIONS..." : "UPDATING UNIT IN SNITCH MESH..."} />}
       
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white animate-bounce font-heading font-bold text-sm">
           <CheckCircle2 className="w-5 h-5 text-[#00C853]" />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-black rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-[6px_6px_0px_#FF3B30] relative animate-in fade-in zoom-in-95">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-black/10 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            
+            <div className="w-12 h-12 rounded-2xl bg-[#FF3B30]/10 border-2 border-[#FF3B30] flex items-center justify-center mb-4 text-[#FF3B30]">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <h3 className="font-heading font-black text-2xl text-black mb-2">
+              Remove Product Unit?
+            </h3>
+            <p className="text-xs font-mono font-bold text-black/70 mb-6">
+              Are you sure you want to permanently delete <span className="text-black font-black">"{formData.name}"</span>? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 py-3 rounded-full bg-white text-black font-heading font-extrabold text-xs border-2 border-black hover:bg-black/5 transition-colors cursor-pointer"
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDelete}
+                className="flex-1 py-3 rounded-full bg-[#FF3B30] text-white font-heading font-black text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:bg-red-700 transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? "DELETING..." : "CONFIRM DELETE"}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -250,6 +390,23 @@ export default function CreateProduct() {
             <span>DASHBOARD</span>
             <ArrowLeft className="w-4 h-4" />
           </Link>
+
+          <Link
+            to={`/product/${id}`}
+            className="units-pill bg-[#FFD600] text-black font-heading font-extrabold p-3 rounded-2xl flex items-center justify-between text-xs border-2 border-black shadow-[2px_2px_0px_#000000]"
+          >
+            <span>VIEW LIVE</span>
+            <Eye className="w-4 h-4" />
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="units-pill bg-[#FF3B30]/10 text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white font-mono font-bold p-3 rounded-2xl flex items-center justify-between text-xs border border-[#FF3B30]/40 transition-colors cursor-pointer mt-4"
+          >
+            <span>DELETE UNIT</span>
+            <Trash2 className="w-4 h-4" />
+          </button>
         </aside>
 
         {/* Main Form & Live Preview Area */}
@@ -262,10 +419,10 @@ export default function CreateProduct() {
                 <div className="mb-6 pb-4 border-b-2 border-black flex items-center justify-between">
                   <div>
                     <span className="text-xs font-mono font-bold text-[#FF5500] uppercase tracking-widest">
-                      SPECIFICATION STUDIO
+                      EDIT SPECIFICATION
                     </span>
                     <h2 className="font-heading font-black text-3xl text-black mt-1">
-                      Create Product Unit
+                      Edit Product Unit
                     </h2>
                   </div>
                 </div>
@@ -376,11 +533,11 @@ export default function CreateProduct() {
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="block text-xs font-mono font-bold text-black uppercase">
-                          Product Photos (Select Multiple)
+                          Product Photos (Manage & Add More)
                         </label>
                         {previewImages.length > 0 && (
                           <span className="text-xs font-mono font-bold text-[#FF5500]">
-                            {previewImages.length} Photo{previewImages.length > 1 ? "s" : ""} Selected
+                            {previewImages.length} Photo{previewImages.length > 1 ? "s" : ""} Available
                           </span>
                         )}
                       </div>
@@ -396,7 +553,7 @@ export default function CreateProduct() {
                         />
                         <Upload className="w-8 h-8 text-[#FF5500] mx-auto mb-2" />
                         <p className="text-xs font-mono font-bold text-black">
-                          Click or drag multiple photos here
+                          Click or drag photos here to add
                         </p>
                         <p className="text-[10px] font-mono text-black/60 mt-0.5">
                           Hold Ctrl / Shift to select multiple images simultaneously
@@ -418,7 +575,7 @@ export default function CreateProduct() {
                               >
                                 <img
                                   src={imgItem.url}
-                                  alt={`Upload ${idx + 1}`}
+                                  alt={`Product image ${idx + 1}`}
                                   className="w-full h-20 object-cover"
                                 />
 
@@ -458,7 +615,7 @@ export default function CreateProduct() {
                           <span>Product Variants & Options</span>
                         </h3>
                         <p className="text-xs font-mono font-bold text-black/70">
-                          Add custom sizes, colors, variant pricing, and attributes
+                          Edit custom sizes, colors, variant pricing, and attributes
                         </p>
                       </div>
 
@@ -483,7 +640,7 @@ export default function CreateProduct() {
                       <div className="space-y-5 mt-4">
                         {variants.map((v, vIdx) => (
                           <div
-                            key={v.id}
+                            key={v.id || vIdx}
                             className="bg-[#F5EBE6] border-2 border-black rounded-[24px] p-5 shadow-[3px_3px_0px_#000000] relative"
                           >
                             <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-black/10">
@@ -618,13 +775,25 @@ export default function CreateProduct() {
                     )}
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-4 rounded-full bg-[#00C853] text-black font-heading font-black text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-40"
-                  >
-                    {loading ? "PUBLISHING TO SNITCH..." : "PUBLISH UNIT TO CATALOG ↗"}
-                  </button>
+                  <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t-2 border-black">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 w-full py-4 rounded-full bg-[#00C853] text-black font-heading font-black text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Save className="w-5 h-5" />
+                      <span>{loading ? "SAVING CHANGES TO SNITCH..." : "SAVE & UPDATE PRODUCT UNIT ↗"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteModal(true)}
+                      className="w-full sm:w-auto px-6 py-4 rounded-full bg-[#FF3B30]/10 text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white font-heading font-bold text-sm border-2 border-[#FF3B30]/40 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>DELETE</span>
+                    </button>
+                  </div>
                 </form>
               </div>
             </div>
@@ -687,7 +856,7 @@ export default function CreateProduct() {
                           const isSel = selectedPreviewVariantIdx === i;
                           return (
                             <button
-                              key={v.id}
+                              key={v.id || i}
                               type="button"
                               onClick={() => setSelectedPreviewVariantIdx(i)}
                               className={`px-3 py-1 rounded-full text-xs font-mono font-bold border transition-all ${

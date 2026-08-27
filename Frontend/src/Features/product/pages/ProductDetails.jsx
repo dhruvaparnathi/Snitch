@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, Link, useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -18,10 +19,12 @@ import {
   Share2,
   Layers,
   Sliders,
-  Check
+  Check,
+  Edit3
 } from "lucide-react";
 import { useLenis } from "../../../assets/useLenis";
 import { useProduct } from "../hook/useProduct";
+import { useCart } from "../../cart/hook/useCart";
 import gsap from "gsap";
 import BuyerLoader from "../../../Components/loaders/BuyerLoader.jsx";
 
@@ -30,14 +33,15 @@ const FALLBACK_DEFAULT_IMG = "https://images.unsplash.com/photo-1598928506311-c5
 export default function ProductDetails() {
   useLenis();
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
   const { handleGetSingleProduct } = useProduct();
+  const { totalItems, handleAddToCart: addProductToCart } = useCart();
 
   // State
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [cart, setCart] = useState([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
@@ -127,6 +131,12 @@ export default function ProductDetails() {
     ? product.images.map((img) => typeof img === "string" ? img : img.url).filter(Boolean)
     : [FALLBACK_DEFAULT_IMG];
 
+  const isValidImg = (url) => {
+    if (!url || typeof url !== "string") return false;
+    if (url.startsWith("blob:")) return false;
+    return true;
+  };
+
   // Normalize Variants Array
   const rawVariants = Array.isArray(product.variants)
     ? product.variants
@@ -145,16 +155,22 @@ export default function ProductDetails() {
     const vPrice = v.prices?.amount !== undefined ? v.prices.amount : (v.priceAmount !== undefined ? v.priceAmount : basePriceAmount);
     const vCurr = v.prices?.currency || v.priceCurrency || basePriceCurrency;
     const vStock = v.stock !== undefined ? v.stock : baseStock;
-    const vImg = v.images?.[0]?.url ||
+
+    // Pick valid image, ensuring blob: URLs are discarded so all variants get a clean, working thumbnail
+    const vImgRaw = v.images?.[0]?.url ||
       (typeof v.images?.[0] === "string" ? v.images[0] : null) ||
       v.Images?.[0]?.url ||
       (typeof v.Images?.[0] === "string" ? v.Images[0] : null) ||
-      (typeof v.image === "string" ? v.image : v.image?.url) ||
-      (v.previewUrl && !v.previewUrl.startsWith("blob:") ? v.previewUrl : null) ||
-      (rawImages[idx] || null);
+      (typeof v.image === "string" ? v.image : v.image?.url);
+
+    const vImg = (isValidImg(vImgRaw) ? vImgRaw : null) ||
+      (rawImages[idx] || rawImages[0] || FALLBACK_DEFAULT_IMG);
+
+    const variantId = v._id ? String(v._id) : (v.id ? String(v.id) : String(idx));
 
     return {
-      id: v._id || `variant-${idx}`,
+      id: variantId,
+      _id: variantId,
       label: attrs.map((a) => `${a.key ? a.key + ": " : ""}${a.val}`).filter(Boolean).join(" • ") || `Variant #${idx + 1}`,
       shortLabel: attrs.map((a) => a.val || a.key).filter(Boolean).join(" / ") || `Option #${idx + 1}`,
       attributes: attrs,
@@ -203,33 +219,32 @@ export default function ProductDetails() {
     }
   };
 
-  const handleAddToCart = () => {
-    const item = {
-      id: `${product._id || product.id}${activeVariant ? `-${activeVariant.id}` : ''}`,
-      name: activeVariant ? `${title} (${activeVariant.shortLabel})` : title,
-      price: `${currentCurrency} ${currentPrice}`,
-      priceVal: Number(currentPrice) || 0,
-      image: displayImage,
-      quantity: quantity,
-      variant: activeVariant ? activeVariant.label : null
-    };
+  const handleAddToCart = async () => {
+    if (!user) {
+      triggerToast("Please sign in to add items to your cart");
+      setTimeout(() => {
+        navigate(`/login?redirect=${encodeURIComponent(`/product/${id}`)}`);
+      }, 700);
+      return;
+    }
 
-    setCart((prev) => {
-      const exists = prev.find((p) => p.id === item.id);
-      if (exists) {
-        return prev.map((p) => p.id === item.id ? { ...p, quantity: p.quantity + quantity } : p);
-      }
-      return [...prev, item];
-    });
+    if (hasVariants && !activeVariant) {
+      triggerToast("Please select a variant option first");
+      return;
+    }
 
-    triggerToast(`Added ${quantity}x "${item.name}" to selection!`);
+    try {
+      const prodId = product._id || product.id;
+      const varId = hasVariants
+        ? (activeVariant.id || activeVariant._id || String(selectedVariantIdx))
+        : "default";
+      await addProductToCart(prodId, varId, quantity);
+      const varName = activeVariant ? `${title} (${activeVariant.shortLabel})` : title;
+      triggerToast(`Added ${quantity}x "${varName}" to your cart!`);
+    } catch (err) {
+      triggerToast(err.message || "Failed to add to cart");
+    }
   };
-
-  const removeFromCart = (itemId) => {
-    setCart((prev) => prev.filter((item) => item.id !== itemId));
-  };
-
-  const cartTotal = cart.reduce((sum, item) => sum + (item.priceVal * item.quantity), 0);
 
   return (
     <div className="min-h-screen bg-[#F5EBE6] text-black font-body selection:bg-[#FF5500] selection:text-white relative p-4 sm:p-6 lg:p-8">
@@ -239,81 +254,6 @@ export default function ProductDetails() {
         <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white animate-bounce font-heading font-bold text-sm">
           <CheckCircle2 className="w-5 h-5 text-[#00C853]" />
           <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Cart Drawer */}
-      {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#FFFFFF] border-l-2 border-black h-full p-6 flex flex-col justify-between shadow-2xl">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b-2 border-black">
-                <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-6 h-6 text-[#FF5500]" />
-                  <h2 className="font-heading font-extrabold text-xl">Selection Cart</h2>
-                </div>
-                <button
-                  onClick={() => setIsCartOpen(false)}
-                  className="p-2 rounded-xl bg-[#F5EBE6] hover:bg-black hover:text-white transition-colors border border-black cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mt-6 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                {cart.length === 0 ? (
-                  <div className="text-center py-16 text-black/50">
-                    <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-30 text-black" />
-                    <p className="font-bold font-mono text-sm">Your booking selection is empty.</p>
-                  </div>
-                ) : (
-                  cart.map((item) => (
-                    <div key={item.id} className="p-3.5 rounded-2xl bg-[#F5EBE6] border-2 border-black flex items-center gap-3">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        onError={(e) => { e.currentTarget.src = FALLBACK_DEFAULT_IMG; }}
-                        className="w-16 h-16 rounded-xl object-cover border border-black"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-heading font-extrabold text-sm truncate">{item.name}</h4>
-                        {item.variant && (
-                          <span className="text-[10px] font-mono text-black/60 block truncate">{item.variant}</span>
-                        )}
-                        <p className="text-xs font-mono font-bold text-[#FF5500]">{item.price}</p>
-                        <p className="text-[11px] font-semibold text-black/70">Qty: {item.quantity}</p>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-xs p-2 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="pt-6 border-t-2 border-black">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-mono font-bold text-sm text-black/70">TOTAL AMOUNT</span>
-                <span className="font-heading font-black text-2xl">{currentCurrency} {cartTotal.toLocaleString()}</span>
-              </div>
-              <button
-                onClick={() => {
-                  if (cart.length === 0) return;
-                  triggerToast("Reservation confirmed with Snitch team!");
-                  setCart([]);
-                  setIsCartOpen(false);
-                }}
-                disabled={cart.length === 0}
-                className="w-full py-4 rounded-2xl bg-[#00C853] text-black font-extrabold text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-40 cursor-pointer"
-              >
-                PROCEED TO CHECKOUT ↗
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -339,18 +279,30 @@ export default function ProductDetails() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
 
-          {/* Cart Pill */}
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="units-pill bg-[#C4A1FF] text-black font-heading font-black p-3.5 rounded-2xl text-center text-sm border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center justify-center gap-2"
+          {/* Direct Link to Cart Page */}
+          <Link
+            to="/cart"
+            className="units-pill bg-[#C4A1FF] text-black font-heading font-black p-3.5 rounded-2xl text-center text-sm border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center justify-center gap-2 cursor-pointer hover:bg-black hover:text-white transition-colors"
           >
+            <ShoppingBag className="w-4 h-4" />
             <span>View Cart</span>
-            {cart.length > 0 && (
-              <span className="w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center">
-                {cart.reduce((s, i) => s + i.quantity, 0)}
+            {totalItems > 0 && (
+              <span className="w-5 h-5 bg-black text-white group-hover:bg-white group-hover:text-black text-xs rounded-full flex items-center justify-center font-mono font-bold">
+                {totalItems}
               </span>
             )}
-          </button>
+          </Link>
+
+          {/* Edit Product Action if Current User is the Seller */}
+          {user && product?.seller && (String(user._id || user.id) === String(product.seller._id || product.seller.id || product.seller)) && (
+            <Link
+              to={`/seller/edit-product/${id}`}
+              className="units-pill bg-[#FFD600] text-black font-heading font-extrabold p-3.5 rounded-2xl text-center text-xs border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center justify-center gap-2 cursor-pointer hover:bg-black hover:text-white transition-colors"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span>EDIT UNIT</span>
+            </Link>
+          )}
         </aside>
 
         {/* Product Details Content */}
@@ -366,9 +318,20 @@ export default function ProductDetails() {
               <span className="text-black/70 truncate max-w-xs">{title}</span>
             </div>
 
-            <span className="px-3 py-1 rounded-full font-mono text-[10px] font-bold bg-[#00C853] text-black border border-black">
-              {currentStock} UNITS IN STOCK
-            </span>
+            <div className="flex items-center gap-2">
+              {user && product?.seller && (String(user._id || user.id) === String(product.seller._id || product.seller.id || product.seller)) && (
+                <Link
+                  to={`/seller/edit-product/${id}`}
+                  className="px-3 py-1 rounded-full font-mono text-[10px] font-bold bg-[#FFD600] text-black border border-black hover:bg-black hover:text-white transition-colors flex items-center gap-1"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>EDIT</span>
+                </Link>
+              )}
+              <span className="px-3 py-1 rounded-full font-mono text-[10px] font-bold bg-[#00C853] text-black border border-black">
+                {currentStock} UNITS IN STOCK
+              </span>
+            </div>
           </div>
 
           {/* Main Layout Grid */}

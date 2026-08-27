@@ -16,9 +16,9 @@ const cartSchema = new mongoose.Schema(
                     required: true
                 },
                 variant: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: "Variant",
-                    required: true
+                    type: mongoose.Schema.Types.Mixed,
+                    required: false,
+                    default: null
                 },
                 quantity: {
                     type: Number,
@@ -31,8 +31,9 @@ const cartSchema = new mongoose.Schema(
                 }
             }
         ]
-    }
-)
+    },
+    { timestamps: true }
+);
 
 const Cart = mongoose.model("Cart", cartSchema);
 

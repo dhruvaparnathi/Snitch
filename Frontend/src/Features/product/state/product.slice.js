@@ -20,9 +20,13 @@ const productSlice = createSlice({
         addProduct: (state, action) => {
             state.products.push(action.payload);
         },
+        removeProduct: (state, action) => {
+            const targetId = action.payload;
+            state.products = state.products.filter(p => (p._id || p.id)?.toString() !== targetId?.toString());
+        }
     },
 });
 
-export const { setProducts, setLoading, setError, addProduct } = productSlice.actions;
+export const { setProducts, setLoading, setError, addProduct, removeProduct } = productSlice.actions;
 
 export default productSlice.reducer;

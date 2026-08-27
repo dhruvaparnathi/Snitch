@@ -10,6 +10,16 @@ export const createProductApi = async (productData) => {
     return response.data;
 };
 
+export const updateProductApi = async (id, productData) => {
+    const response = await productApiInstance.put(`/seller/update/${id}`, productData);
+    return response.data;
+};
+
+export const deleteProductApi = async (id) => {
+    const response = await productApiInstance.delete(`/seller/delete/${id}`);
+    return response.data;
+};
+
 export const getAllProductsApi = async () => {
     const response = await productApiInstance.get("/seller");
     return response.data;

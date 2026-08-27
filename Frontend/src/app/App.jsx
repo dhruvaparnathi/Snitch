@@ -31,6 +31,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import BuyerLoader from "../Components/loaders/BuyerLoader.jsx";
 import { CardSkeleton } from "../Components/loaders/BentoSkeleton.jsx";
 import PixelArtCanvas from "../Components/common/PixelArtCanvas.jsx";
+import { useCart } from "../Features/cart/hook/useCart";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -41,12 +42,11 @@ export default function App() {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { products: apiProducts, loading: productsLoading, handleGetAllProducts } = useProduct();
+  const { totalItems, handleAddToCart: addProductToCart } = useCart();
 
   // State
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [lang, setLang] = useState("EN");
-  const [cart, setCart] = useState([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [toastMessage, setToastMessage] = useState(null);
@@ -110,48 +110,32 @@ export default function App() {
     return imgs.length > 0 ? imgs : [FALLBACK_IMG];
   };
 
-  const addToCart = (product) => {
+  const addToCart = async (product) => {
     if (!product) return;
     const prodId = product._id || product.id;
-    const priceVal = product.price?.amount !== undefined ? Number(product.price.amount) : (Number(product.priceVal) || 0);
+    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+
+    if (hasVariants) {
+      navigate(`/product/${prodId}`);
+      return;
+    }
+
+    if (!user) {
+      triggerToast("Please sign in to add items to your cart");
+      setTimeout(() => {
+        navigate(`/login?redirect=${encodeURIComponent("/")}`);
+      }, 700);
+      return;
+    }
+
     const prodName = product.title || product.name || "Product";
-    const prodCurrency = product.price?.currency || product.currency || "INR";
-    const prodPrice = `${prodCurrency} ${priceVal.toLocaleString()}`;
-    const prodImage = getProductImage(product);
-
-    setCart((prev) => {
-      const exists = prev.find((item) => item.id === prodId);
-      if (exists) {
-        return prev.map((item) =>
-          item.id === prodId
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: prodId,
-          name: prodName,
-          price: prodPrice,
-          priceVal: priceVal,
-          currency: prodCurrency,
-          image: prodImage,
-          quantity: 1
-        }
-      ];
-    });
-    triggerToast(`Added "${prodName}" to cart`);
+    try {
+      await addProductToCart(prodId, "default", 1);
+      triggerToast(`Added "${prodName}" to cart!`);
+    } catch (err) {
+      triggerToast(err.message || "Failed to add to cart");
+    }
   };
-
-  const removeFromCart = (id) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const cartTotal = cart.reduce((sum, item) => {
-    const val = item.priceVal || 0;
-    return sum + val * item.quantity;
-  }, 0);
 
   // Available Categories extracted from real user products
   const productCategories = [
@@ -183,73 +167,6 @@ export default function App() {
         <div className="fixed bottom-6 right-6 z-50 bg-black text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white animate-bounce font-heading font-bold text-sm">
           <CheckCircle2 className="w-5 h-5 text-[#00C853]" />
           <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Cart Drawer */}
-      {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#FFFFFF] border-l-2 border-black h-full p-6 flex flex-col justify-between shadow-2xl">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b-2 border-black">
-                <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-6 h-6 text-[#FF5500]" />
-                  <h2 className="font-heading font-extrabold text-xl">Snitch Selection Cart</h2>
-                </div>
-                <button
-                  onClick={() => setIsCartOpen(false)}
-                  className="p-2 rounded-xl bg-[#F5EBE6] hover:bg-black hover:text-white transition-colors border border-black cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mt-6 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                {cart.length === 0 ? (
-                  <div className="text-center py-16 text-black/50">
-                    <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-30 text-black" />
-                    <p className="font-bold font-mono text-sm">Your cart is empty.</p>
-                  </div>
-                ) : (
-                  cart.map((item) => (
-                    <div key={item.id} className="p-3.5 rounded-2xl bg-[#F5EBE6] border-2 border-black flex items-center gap-3">
-                      <img src={item.image} alt={item.name} className="w-16 h-16 rounded-xl object-cover border border-black bg-white" />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-heading font-extrabold text-sm truncate">{item.name}</h4>
-                        <p className="text-xs font-mono font-bold text-[#FF5500]">{item.price}</p>
-                        <p className="text-[11px] font-semibold text-black/70">Qty: {item.quantity}</p>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-xs p-2 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="pt-6 border-t-2 border-black">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-mono font-bold text-sm text-black/70">TOTAL</span>
-                <span className="font-heading font-black text-2xl">{cart[0]?.currency || "INR"} {cartTotal.toLocaleString()}</span>
-              </div>
-              <button
-                onClick={() => {
-                  if (cart.length === 0) return;
-                  triggerToast("Order placed with creators!");
-                  setCart([]);
-                  setIsCartOpen(false);
-                }}
-                disabled={cart.length === 0}
-                className="w-full py-4 rounded-2xl bg-[#00C853] text-black font-extrabold text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all disabled:opacity-40 cursor-pointer"
-              >
-                PROCEED TO CHECKOUT ↗
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -362,17 +279,18 @@ export default function App() {
           </div>
 
           {/* Book / Cart Lilac Pill */}
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="units-pill bg-[#C4A1FF] text-black font-heading font-black p-3.5 rounded-2xl text-center text-sm border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center justify-center gap-2"
+          <Link
+            to="/cart"
+            className="units-pill bg-[#C4A1FF] text-black font-heading font-black p-3.5 rounded-2xl text-center text-sm border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center justify-center gap-2 cursor-pointer hover:bg-black hover:text-white transition-colors"
           >
+            <ShoppingBag className="w-4 h-4" />
             <span>Your Cart</span>
-            {cart.length > 0 && (
-              <span className="w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center">
-                {cart.reduce((s, i) => s + i.quantity, 0)}
+            {totalItems > 0 && (
+              <span className="w-5 h-5 bg-black text-white group-hover:bg-white group-hover:text-black text-xs rounded-full flex items-center justify-center font-mono font-bold">
+                {totalItems}
               </span>
             )}
-          </button>
+          </Link>
 
           {/* Language Toggle Black Pill */}
           <button
@@ -507,13 +425,12 @@ export default function App() {
                         <ArrowUpRight className="w-4 h-4" />
                       </Link>
 
-                      <button
-                        onClick={() => addToCart(selectedProduct)}
+                      <Link
+                        to={`/product/${selectedProduct._id || selectedProduct.id}`}
                         className="flex-1 py-3 px-4 rounded-xl bg-[#00E676] text-black font-heading font-black text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all flex items-center justify-center gap-1 cursor-pointer"
                       >
-                        <span>ADD TO CART</span>
-                        <Plus className="w-4 h-4" />
-                      </button>
+                        <span>{selectedProduct.variants && selectedProduct.variants.length > 0 ? "SELECT VARIANT / OPTION ↗" : "ADD TO CART ↗"}</span>
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -676,13 +593,22 @@ export default function App() {
                           >
                             View
                           </Link>
-                          <button
-                            onClick={() => addToCart(prod)}
-                            className="px-4 py-2 rounded-xl bg-black text-white font-heading font-extrabold text-xs hover:bg-[#00C853] hover:text-black transition-colors flex items-center gap-1 cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>SELECT</span>
-                          </button>
+                          {prod.variants && prod.variants.length > 0 ? (
+                            <Link
+                              to={`/product/${prodId}`}
+                              className="px-4 py-2 rounded-xl bg-[#00E676] text-black font-heading font-extrabold text-xs border border-black hover:bg-black hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>SELECT OPTION ↗</span>
+                            </Link>
+                          ) : (
+                            <button
+                              onClick={() => addToCart(prod)}
+                              className="px-4 py-2 rounded-xl bg-black text-white font-heading font-extrabold text-xs hover:bg-[#00C853] hover:text-black transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>SELECT</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

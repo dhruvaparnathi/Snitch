@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
-import { createProductApi, getAllProductsApi, getSellerProductsApi, getSingleProductApi } from "../service/product.api";
-import { setLoading, setError, setProducts, addProduct } from "../state/product.slice";
+import { createProductApi, updateProductApi, deleteProductApi, getAllProductsApi, getSellerProductsApi, getSingleProductApi } from "../service/product.api";
+import { setLoading, setError, setProducts, addProduct, removeProduct } from "../state/product.slice";
 
 export const useProduct = () => {
     const dispatch = useDispatch();
@@ -17,22 +17,30 @@ export const useProduct = () => {
                 formData = productData;
             } else {
                 formData = new FormData();
-                const { name, description, priceAmount, priceCurrency, stockQuantity, images } = productData;
+                const { name, description, category, priceAmount, priceCurrency, stockQuantity, images } = productData;
                 
                 formData.append("name", name || "");
                 formData.append("description", description || "");
+                formData.append("category", category || "Living Units");
                 formData.append("priceAmount", priceAmount !== undefined ? priceAmount : "");
                 formData.append("priceCurrency", priceCurrency || "INR");
                 formData.append("stockQuantity", stockQuantity !== undefined ? stockQuantity : "");
 
                 if (images && images.length > 0) {
                     Array.from(images).forEach((file) => {
-                        formData.append("images", file);
+                        if (file instanceof File || file instanceof Blob) {
+                            formData.append("images", file);
+                        }
                     });
                 }
 
                 if (productData.variants) {
                     formData.append("variants", JSON.stringify(productData.variants));
+                    productData.variants.forEach((v, vIdx) => {
+                        if (v.image && (v.image instanceof File || v.image instanceof Blob)) {
+                            formData.append(`variant_image_${vIdx}`, v.image);
+                        }
+                    });
                 }
             }
 
@@ -47,6 +55,78 @@ export const useProduct = () => {
                 (err.response?.data?.errors ? err.response.data.errors.map((e) => e.msg).join(", ") : null) ||
                 err.message ||
                 "Failed to create product";
+            dispatch(setError(errorMessage));
+            throw err;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    };
+
+    const handleUpdateProduct = async (id, productData) => {
+        try {
+            dispatch(setLoading(true));
+            dispatch(setError(null));
+
+            let formData;
+            if (productData instanceof FormData) {
+                formData = productData;
+            } else {
+                formData = new FormData();
+                const { name, description, category, priceAmount, priceCurrency, stockQuantity, images, existingImages } = productData;
+                
+                formData.append("name", name || "");
+                formData.append("description", description || "");
+                formData.append("category", category || "Living Units");
+                formData.append("priceAmount", priceAmount !== undefined ? priceAmount : "");
+                formData.append("priceCurrency", priceCurrency || "INR");
+                formData.append("stockQuantity", stockQuantity !== undefined ? stockQuantity : "");
+
+                if (existingImages) {
+                    formData.append("existingImages", JSON.stringify(existingImages));
+                }
+
+                if (images && images.length > 0) {
+                    Array.from(images).forEach((file) => {
+                        if (file instanceof File || file instanceof Blob) {
+                            formData.append("images", file);
+                        }
+                    });
+                }
+
+                if (productData.variants) {
+                    formData.append("variants", JSON.stringify(productData.variants));
+                    productData.variants.forEach((v, vIdx) => {
+                        if (v.image && (v.image instanceof File || v.image instanceof Blob)) {
+                            formData.append(`variant_image_${vIdx}`, v.image);
+                        }
+                    });
+                }
+            }
+
+            const response = await updateProductApi(id, formData);
+            return response;
+        } catch (err) {
+            const errorMessage =
+                err.response?.data?.message ||
+                (err.response?.data?.errors ? err.response.data.errors.map((e) => e.msg).join(", ") : null) ||
+                err.message ||
+                "Failed to update product";
+            dispatch(setError(errorMessage));
+            throw err;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    };
+
+    const handleDeleteProduct = async (id) => {
+        try {
+            dispatch(setLoading(true));
+            dispatch(setError(null));
+            const response = await deleteProductApi(id);
+            dispatch(removeProduct(id));
+            return response;
+        } catch (err) {
+            const errorMessage = err.response?.data?.message || err.message || "Failed to delete product";
             dispatch(setError(errorMessage));
             throw err;
         } finally {
@@ -101,5 +181,15 @@ export const useProduct = () => {
         }
     };
 
-    return { products, loading, error, handleCreateProduct, handleGetAllProducts, handleGetSellerProducts, handleGetSingleProduct };
+    return {
+        products,
+        loading,
+        error,
+        handleCreateProduct,
+        handleUpdateProduct,
+        handleDeleteProduct,
+        handleGetAllProducts,
+        handleGetSellerProducts,
+        handleGetSingleProduct
+    };
 };

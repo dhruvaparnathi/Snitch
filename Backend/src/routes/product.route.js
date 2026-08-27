@@ -1,7 +1,14 @@
 import express from "express";
 import { createProductValidation } from "../validators/product.validator.js";
 import { validate } from "../validators/validate.js";
-import { createProductController, getAllProductController, getSellerProductsController, getSingleProductController} from "../controllers/product.controller.js";
+import {
+    createProductController,
+    updateProductController,
+    deleteProductController,
+    getAllProductController,
+    getSellerProductsController,
+    getSingleProductController
+} from "../controllers/product.controller.js";
 import { authenticateSeller } from "../middlewares/auth.middleware.js";
 import multer from "multer";
 
@@ -14,7 +21,12 @@ const upload = multer({
 
 const productRoute = express.Router();
 
-productRoute.post("/seller/create", authenticateSeller, upload.array("images", 7), createProductValidation, validate, createProductController);
+productRoute.post("/seller/create", authenticateSeller, upload.any(), createProductValidation, validate, createProductController);
+
+productRoute.put("/seller/update/:id", authenticateSeller, upload.any(), updateProductController);
+productRoute.post("/seller/update/:id", authenticateSeller, upload.any(), updateProductController);
+
+productRoute.delete("/seller/delete/:id", authenticateSeller, deleteProductController);
 
 productRoute.get("/seller", authenticateSeller, getAllProductController);
 

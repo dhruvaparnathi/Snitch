@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import {
   Lock,
   Mail,
@@ -16,6 +16,8 @@ import gsap from "gsap";
 export default function Login() {
   useLenis();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectPath = searchParams.get("redirect") || "/";
   const { handleLogin } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -47,7 +49,7 @@ export default function Login() {
       await handleLogin(formData);
       setToastMessage("Authenticated successfully!");
       setTimeout(() => {
-        navigate("/");
+        navigate(redirectPath);
       }, 1000);
     } catch (err) {
       setErrorMsg(err.message || "Failed to authenticate.");
