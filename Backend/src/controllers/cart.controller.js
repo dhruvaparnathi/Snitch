@@ -14,6 +14,15 @@ export const addToCartController = async (req, res) => {
             return res.status(404).json({ message: "Product not found", success: false });
         }
 
+        // Strictly enforce that sellers cannot buy / add to cart their own listed products
+        const sellerId = product.seller?._id?.toString() || product.seller?.toString();
+        if (sellerId && sellerId === userId.toString()) {
+            return res.status(400).json({
+                message: "You cannot purchase your own listed product.",
+                success: false
+            });
+        }
+
         let variant = null;
         let stock = product.stock || 0;
         let itemPrice = product.price;

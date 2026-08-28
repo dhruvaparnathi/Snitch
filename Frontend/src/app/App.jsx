@@ -128,12 +128,19 @@ export default function App() {
       return;
     }
 
+    const sellerId = product.seller?._id?.toString() || product.seller?.toString();
+    const currentUserId = user._id?.toString() || user.id?.toString();
+    if (sellerId && currentUserId && sellerId === currentUserId) {
+      triggerToast("You cannot purchase your own listed product.");
+      return;
+    }
+
     const prodName = product.title || product.name || "Product";
     try {
       await addProductToCart(prodId, "default", 1);
       triggerToast(`Added "${prodName}" to cart!`);
     } catch (err) {
-      triggerToast(err.message || "Failed to add to cart");
+      triggerToast(err.response?.data?.message || err.message || "Failed to add to cart");
     }
   };
 
@@ -593,7 +600,15 @@ export default function App() {
                           >
                             View
                           </Link>
-                          {prod.variants && prod.variants.length > 0 ? (
+                          {user && (String(user._id || user.id) === String(prod.seller?._id || prod.seller?.id || prod.seller)) ? (
+                            <Link
+                              to={`/seller/edit-product/${prodId}`}
+                              className="px-4 py-2 rounded-xl bg-[#FFD600] text-black font-heading font-extrabold text-xs border border-black hover:bg-black hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+                              title="You listed this product - Edit Unit"
+                            >
+                              <span>EDIT UNIT ↗</span>
+                            </Link>
+                          ) : prod.variants && prod.variants.length > 0 ? (
                             <Link
                               to={`/product/${prodId}`}
                               className="px-4 py-2 rounded-xl bg-[#00E676] text-black font-heading font-extrabold text-xs border border-black hover:bg-black hover:text-white transition-colors flex items-center gap-1 cursor-pointer"

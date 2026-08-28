@@ -228,6 +228,11 @@ export default function ProductDetails() {
       return;
     }
 
+    if (user && product?.seller && (String(user._id || user.id) === String(product.seller._id || product.seller.id || product.seller))) {
+      triggerToast("You cannot purchase your own listed product.");
+      return;
+    }
+
     if (hasVariants && !activeVariant) {
       triggerToast("Please select a variant option first");
       return;
@@ -242,7 +247,7 @@ export default function ProductDetails() {
       const varName = activeVariant ? `${title} (${activeVariant.shortLabel})` : title;
       triggerToast(`Added ${quantity}x "${varName}" to your cart!`);
     } catch (err) {
-      triggerToast(err.message || "Failed to add to cart");
+      triggerToast(err.response?.data?.message || err.message || "Failed to add to cart");
     }
   };
 
@@ -493,34 +498,63 @@ export default function ProductDetails() {
                     </div>
                   )}
 
-                  {/* Quantity Selector & Book Button */}
+                  {/* Quantity / Inventory Stock & Actions */}
                   <div className="space-y-4 pt-4 border-t-2 border-black/10">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-black uppercase">SELECT QUANTITY:</span>
-                      <div className="flex items-center gap-3 bg-[#F5EBE6] border-2 border-black rounded-full px-3 py-1">
-                        <button
-                          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                          className="p-1 hover:text-[#FF5500] transition-colors cursor-pointer"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="font-mono font-black text-sm w-6 text-center">{quantity}</span>
-                        <button
-                          onClick={() => setQuantity((q) => Math.min(currentStock || 10, q + 1))}
-                          className="p-1 hover:text-[#FF5500] transition-colors cursor-pointer"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                    {user && product?.seller && (String(user._id || user.id) === String(product.seller._id || product.seller.id || product.seller)) ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3.5 bg-[#F5EBE6] border-2 border-black rounded-2xl">
+                          <span className="font-mono text-xs font-bold text-black uppercase">CURRENT INVENTORY STOCK:</span>
+                          <span className="font-mono font-black text-sm px-3 py-1 bg-[#FFB800] text-black border border-black rounded-full">
+                            {currentStock} UNITS
+                          </span>
+                        </div>
 
-                    <button
-                      onClick={handleAddToCart}
-                      className="w-full py-4 rounded-full bg-[#00E676] text-black font-heading font-black text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <ShoppingBag className="w-5 h-5" />
-                      <span>{hasVariants ? `SELECT ${activeVariant?.shortLabel.toUpperCase()} ↗` : "BOOK THIS UNIT / ADD TO SELECTION ↗"}</span>
-                    </button>
+                        <div className="p-3.5 bg-[#FFB800]/20 border-2 border-black rounded-2xl text-center font-mono text-xs font-bold text-black flex items-center justify-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-[#FF5500]" />
+                          <span>YOU ARE THE SELLER OF THIS PRODUCT</span>
+                        </div>
+
+                        <Link
+                          to={`/seller/edit-product/${id}`}
+                          className="w-full py-4 rounded-full bg-[#FFD600] text-black font-heading font-black text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Edit3 className="w-5 h-5" />
+                          <span>EDIT YOUR LISTED UNIT ↗</span>
+                        </Link>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs font-bold text-black uppercase">SELECT QUANTITY:</span>
+                          <div className="flex items-center gap-3 bg-[#F5EBE6] border-2 border-black rounded-full px-3 py-1">
+                            <button
+                              type="button"
+                              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                              className="p-1 hover:text-[#FF5500] transition-colors cursor-pointer"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="font-mono font-black text-sm w-6 text-center">{quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => setQuantity((q) => Math.min(currentStock || 10, q + 1))}
+                              className="p-1 hover:text-[#FF5500] transition-colors cursor-pointer"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleAddToCart}
+                          className="w-full py-4 rounded-full bg-[#00E676] text-black font-heading font-black text-base border-2 border-black shadow-[3px_3px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <ShoppingBag className="w-5 h-5" />
+                          <span>{hasVariants ? `SELECT ${activeVariant?.shortLabel.toUpperCase()} ↗` : "BOOK THIS UNIT / ADD TO SELECTION ↗"}</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

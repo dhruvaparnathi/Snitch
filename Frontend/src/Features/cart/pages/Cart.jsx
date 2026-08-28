@@ -169,6 +169,18 @@ export default function Cart() {
       }, 700);
       return;
     }
+
+    const currentUserId = user._id?.toString() || user.id?.toString();
+    const hasOwnItems = items.some((item) => {
+      const sellerId = item.product?.seller?._id?.toString() || item.product?.seller?.toString() || item.product?.seller;
+      return sellerId && String(sellerId) === String(currentUserId);
+    });
+
+    if (hasOwnItems) {
+      triggerToast("Your cart contains products you listed. Please remove them to checkout.");
+      return;
+    }
+
     triggerToast("Order placed successfully with Snitch!");
   };
 
@@ -365,6 +377,11 @@ export default function Cart() {
                               <span className="text-[10px] font-mono font-black text-[#FF5500] uppercase tracking-wider">
                                 {productObj.category || "PRODUCT"}
                               </span>
+                              {user && (String(user._id || user.id) === String(productObj.seller?._id || productObj.seller?.id || productObj.seller)) && (
+                                <span className="px-2 py-0.5 rounded-full bg-[#FF3B30] text-white font-mono text-[9px] font-black uppercase border border-black">
+                                  YOUR LISTING - CANNOT BUY
+                                </span>
+                              )}
                             </div>
 
                             <Link
