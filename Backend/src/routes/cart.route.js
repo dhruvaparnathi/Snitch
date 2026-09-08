@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { addToCartController, getCartController, removeFromCartController } from "../controllers/cart.controller.js";
+import { addToCartController, createCartOrderController, getCartController, removeFromCartController } from "../controllers/cart.controller.js";
 
 const cartRouter = express.Router();
 
@@ -10,5 +10,7 @@ cartRouter.delete("/item/:itemId", authMiddleware, removeFromCartController);
 cartRouter.delete("/remove/:productId/:variantId", authMiddleware, removeFromCartController);
 cartRouter.delete("/remove/:productId", authMiddleware, removeFromCartController);
 cartRouter.get("/", authMiddleware, getCartController);
+
+cartRouter.post("/payment/order/create", authMiddleware, createCartOrderController);
 
 export default cartRouter;

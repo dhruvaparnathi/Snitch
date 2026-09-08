@@ -10,9 +10,11 @@ const config = {
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
     IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY,
+    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
 }
 
-if(!config.MONGO_URI || !config.JWT_SECRET || !config.NODE_ENV || !config.PORT || !config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET || !config.GOOGLE_CALLBACK_URL || !config.IMAGEKIT_PRIVATE_KEY) {
+if (!config.MONGO_URI || !config.JWT_SECRET || !config.NODE_ENV || !config.PORT || !config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET || !config.GOOGLE_CALLBACK_URL || !config.IMAGEKIT_PRIVATE_KEY || !config.RAZORPAY_KEY_ID || !config.RAZORPAY_KEY_SECRET) {
     throw new Error("Please define all the environment variables");
 }
 

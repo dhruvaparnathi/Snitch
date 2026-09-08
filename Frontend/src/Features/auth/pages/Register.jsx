@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
+import { useSelector } from "react-redux";
 import { useLenis } from "../../../assets/useLenis";
 import { useAuth } from "../hook/useAuth";
 import gsap from "gsap";
@@ -19,6 +20,17 @@ export default function Register() {
   useLenis();
   const navigate = useNavigate();
   const { handleRegister } = useAuth();
+  const { user, initialized } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (initialized && user) {
+      if (user.role === "seller") {
+        navigate("/seller/dashboard", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [initialized, user, navigate]);
 
   const [formData, setFormData] = useState({
     fullName: "",

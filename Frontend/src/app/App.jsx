@@ -40,7 +40,7 @@ const FALLBACK_IMG = "https://images.unsplash.com/photo-1518455027359-f3f8164ba6
 export default function App() {
   useLenis();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { user, initialized } = useSelector((state) => state.auth);
   const { products: apiProducts, loading: productsLoading, handleGetAllProducts } = useProduct();
   const { totalItems, handleAddToCart: addProductToCart } = useCart();
 
@@ -119,6 +119,8 @@ export default function App() {
       navigate(`/product/${prodId}`);
       return;
     }
+
+    if (!initialized) return;
 
     if (!user) {
       triggerToast("Please sign in to add items to your cart");
@@ -309,7 +311,9 @@ export default function App() {
           </button>
 
           {/* Seller / Auth Action Pill */}
-          {user ? (
+          {!initialized ? (
+            <div className="bg-black/10 border-2 border-black p-2.5 rounded-2xl animate-pulse h-10" />
+          ) : user ? (
             user.role === "seller" ? (
               <Link
                 to="/seller/dashboard"

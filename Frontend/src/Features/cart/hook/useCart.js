@@ -1,11 +1,13 @@
 import { useDispatch, useSelector } from "react-redux";
-import { addToCartAPI, removeFromCartAPI, getCartAPI } from "../service/cart.api";
-import { setItems, setLoading, setError } from "../state/cart.slice";
+import { addToCartAPI, removeFromCartAPI, getCartAPI, createOrderAPI } from "../service/cart.api";
+import { setCart, setLoading, setError } from "../state/cart.slice";
 
 export const useCart = () => {
     const dispatch = useDispatch();
-    const cartItems = useSelector((state) => state.cart.items);
-    const totalItems = useSelector((state) => state.cart.totalItems);
+    const cart = useSelector((state) => state.cart.cart);
+    const rawItems = Array.isArray(cart?.items) ? cart.items : [];
+    const cartItems = rawItems.map((entry) => (entry && entry.item ? { ...entry.item, itemPrice: entry.itemPrice } : entry));
+    const totalItems = cart?.totalItems ?? cartItems.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0);
     const isLoading = useSelector((state) => state.cart.isLoading);
     const error = useSelector((state) => state.cart.error);
 
@@ -14,7 +16,7 @@ export const useCart = () => {
             dispatch(setLoading(true));
             const response = await addToCartAPI(productId, variantId, quantity);
             const cartData = await getCartAPI();
-            dispatch(setItems(cartData.cart?.items || cartData.items || []));
+            dispatch(setCart(cartData.cart || cartData));
             return response;
         } catch (err) {
             const errorMsg = err.response?.data?.message || err.message || "Failed to add to cart";
@@ -30,7 +32,7 @@ export const useCart = () => {
             dispatch(setLoading(true));
             const response = await removeFromCartAPI(itemId, productId, variantId);
             const cartData = await getCartAPI();
-            dispatch(setItems(cartData.cart?.items || cartData.items || []));
+            dispatch(setCart(cartData.cart || cartData));
             return response;
         } catch (err) {
             const errorMsg = err.response?.data?.message || err.message || "Failed to remove from cart";
@@ -45,7 +47,7 @@ export const useCart = () => {
         try {
             dispatch(setLoading(true));
             const response = await getCartAPI();
-            dispatch(setItems(response.cart?.items || response.items || []));
+            dispatch(setCart(response.cart || response));
             return response;
         } catch (err) {
             const errorMsg = err.response?.data?.message || err.message || "Failed to fetch cart";
@@ -56,13 +58,29 @@ export const useCart = () => {
         }
     };
 
+    const handleCreateOrder = async () => {
+        try {
+            dispatch(setLoading(true));
+            const response = await createOrderAPI();
+            return response;
+        } catch (err) {
+            const errorMsg = err.response?.data?.message || err.message || "Failed to create order";
+            dispatch(setError(errorMsg));
+            throw new Error(errorMsg);
+        } finally {
+            dispatch(setLoading(false));
+        }
+    };
+
     return {
+        cart,
         cartItems,
         totalItems,
         isLoading,
         error,
         handleAddToCart,
         handleRemoveFromCart,
-        handleGetCart
+        handleGetCart,
+        handleCreateOrder
     };
 };

@@ -34,3 +34,8 @@ export const getCartAPI = async () => {
     const response = await cartApiInstance.get("/");
     return response.data;
 };
+
+export const createOrderAPI = async () => {
+    const response = await cartApiInstance.post("/payment/order/create");
+    return response.data;
+};

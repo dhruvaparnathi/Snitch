@@ -34,7 +34,7 @@ export default function ProductDetails() {
   useLenis();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { user, initialized } = useSelector((state) => state.auth);
   const { handleGetSingleProduct } = useProduct();
   const { totalItems, handleAddToCart: addProductToCart } = useCart();
 
@@ -220,6 +220,7 @@ export default function ProductDetails() {
   };
 
   const handleAddToCart = async () => {
+    if (!initialized) return;
     if (!user) {
       triggerToast("Please sign in to add items to your cart");
       setTimeout(() => {

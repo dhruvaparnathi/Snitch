@@ -1,6 +1,8 @@
 import cartModel from "../models/cart.model.js";
 import productModel from "../models/product.model.js";
 import { stockOfVariant } from "../dao/product.dao.js";
+import { getCartDetails } from "../dao/cart.dao.js";
+import { createOrder } from "../services/payment.service.js";
 
 export const addToCartController = async (req, res) => {
     try {
@@ -160,14 +162,30 @@ export const removeFromCartController = async (req, res) => {
 export const getCartController = async (req, res) => {
     try {
         const userId = req.user._id;
-        const cart = await cartModel.findOne({ user: userId }).populate("items.product");
+        let cart = await cartModel.findOne({ user: userId });
 
         if (!cart) {
-            await cartModel.create({ user: userId, items: [] });
+            cart = await cartModel.create({ user: userId, items: [] });
         }
+
+        cart = await getCartDetails(userId);
 
         return res.status(200).json({ message: "Cart fetched successfully", cart: cart || { items: [] } });
     } catch (error) {
         res.status(500).json({ message: error.message, success: false });
     }
+};
+
+export const createCartOrderController = async (req, res) => {
+    const cart = await getCartDetails(req.user._id);
+    if (!cart) {
+        return res.status(400).json({ message: "Cart is empty", success: false });
+    }
+
+    const data = await createOrder({
+        amount: cart.total,
+        currency: "INR",
+    });
+    
+    return res.status(200).json({ message: "Order created successfully", success: true, order: data });
 };

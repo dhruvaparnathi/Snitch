@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
+import { useSelector } from "react-redux";
 import { useLenis } from "../../../assets/useLenis";
 import { useAuth } from "../hook/useAuth";
 import gsap from "gsap";
@@ -19,6 +20,13 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const redirectPath = searchParams.get("redirect") || "/";
   const { handleLogin } = useAuth();
+  const { user, initialized } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (initialized && user) {
+      navigate(redirectPath, { replace: true });
+    }
+  }, [initialized, user, navigate, redirectPath]);
 
   const [formData, setFormData] = useState({
     email: "",

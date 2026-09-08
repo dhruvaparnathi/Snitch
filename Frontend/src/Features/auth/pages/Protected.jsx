@@ -7,13 +7,14 @@ import BuyerLoader from "../../../Components/loaders/BuyerLoader.jsx";
 
 function Protected({ children, role = "seller" }) {
   const { handleMe } = useAuth();
-
-  useEffect(() => {
-    handleMe();
-  }, []);
-
   const user = useSelector((state) => state.auth.user);
   const initialized = useSelector((state) => state.auth.initialized);
+
+  useEffect(() => {
+    if (!initialized) {
+      handleMe().catch(() => {});
+    }
+  }, [initialized]);
 
   if (!initialized) {
     if (role === "seller") {
@@ -24,6 +25,8 @@ function Protected({ children, role = "seller" }) {
 
   if (user && user.role === role) {
     return children;
+  } else if (!user) {
+    return <Navigate to={`/login?redirect=${encodeURIComponent(window.location.pathname)}`} replace />;
   } else {
     return <Navigate to="/" replace />;
   }

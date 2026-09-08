@@ -7,24 +7,22 @@ import {
   Plus,
   Trash2,
   ShieldCheck,
-  Zap,
   CheckCircle2,
   Lock,
-  Package,
-  ArrowUpRight,
   LayoutDashboard
 } from "lucide-react";
 import { useLenis } from "../../../assets/useLenis";
 import { useCart } from "../hook/useCart";
 import gsap from "gsap";
+import { useRazorpay } from "react-razorpay";
 
 const FALLBACK_IMG = "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80";
 
 export default function Cart() {
   useLenis();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
-  const { cartItems, totalItems, isLoading, error, handleGetCart, handleAddToCart, handleRemoveFromCart } = useCart();
+  const { user, initialized: authInitialized } = useSelector((state) => state.auth);
+  const { cart, isLoading, handleGetCart, handleAddToCart, handleRemoveFromCart, handleCreateOrder } = useCart();
   const [toastMessage, setToastMessage] = useState(null);
 
   useEffect(() => {
@@ -55,6 +53,16 @@ export default function Cart() {
   const getItemImage = (item) => {
     const p = item.product || {};
 
+    // 0. If product.variants is already the unwound matched variant object
+    if (p.variants && !Array.isArray(p.variants)) {
+      const v = p.variants;
+      const vUrl = (v.images?.[0]?.url && isValidImg(v.images[0].url) ? v.images[0].url : null) ||
+                   (typeof v.images?.[0] === "string" && isValidImg(v.images[0]) ? v.images[0] : null) ||
+                   (v.Images?.[0]?.url && isValidImg(v.Images[0].url) ? v.Images[0].url : null) ||
+                   (typeof v.image === "string" && isValidImg(v.image) ? v.image : null);
+      if (vUrl) return vUrl;
+    }
+
     // 1. Normalize all top-level product images
     let rawImages = [];
     if (p.Images && p.Images.length > 0) {
@@ -66,9 +74,10 @@ export default function Cart() {
     }
 
     // 2. If item has a variant, find the variant index and variant-specific image
-    if (item.variant !== undefined && item.variant !== null && Array.isArray(p.variants)) {
+    const variantsList = Array.isArray(p.variants) ? p.variants : (Array.isArray(p.allVariants) ? p.allVariants : []);
+    if (item.variant !== undefined && item.variant !== null && variantsList.length > 0) {
       const targetVar = String(item.variant);
-      let vIdx = p.variants.findIndex((v, idx) =>
+      let vIdx = variantsList.findIndex((v, idx) =>
         (v._id && String(v._id) === targetVar) ||
         (v.id && String(v.id) === targetVar) ||
         String(idx) === targetVar ||
@@ -99,22 +108,52 @@ export default function Cart() {
     return FALLBACK_IMG;
   };
 
-  // Safe list of items
-  const items = Array.isArray(cartItems) ? cartItems : [];
+  // Safe list of items - supports both aggregated structure { item, itemPrice } and raw items
+  const rawItems = Array.isArray(cart?.items) ? cart.items : [];
+  const items = rawItems.map((entry) => {
+    if (entry && entry.item) {
+      return {
+        ...entry.item,
+        itemPrice: entry.itemPrice,
+      };
+    }
+    return entry;
+  });
 
-  // Calculate Subtotal
-  const subtotal = items.reduce((acc, item) => {
-    const price = item.price?.amount !== undefined
-      ? Number(item.price.amount)
-      : (Number(item.product?.price?.amount) || 0);
-    return acc + price * (item.quantity || 1);
+  // Total quantity / count of items
+  const totalItems =
+    cart?.totalItems !== undefined && cart?.totalItems !== null
+      ? Number(cart.totalItems)
+      : items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+
+  // Fallback subtotal calculation
+  const calculatedSubtotal = items.reduce((acc, item) => {
+    const price =
+      item.itemPrice?.price !== undefined
+        ? Number(item.itemPrice.price)
+        : (item.price?.amount !== undefined
+            ? Number(item.price.amount) * (Number(item.quantity) || 1)
+            : (Number(item.product?.price?.amount) || 0) * (Number(item.quantity) || 1));
+    return acc + price;
   }, 0);
 
+  // Authoritative total directly protected by backend cart.total
+  const subtotal =
+    cart?.total !== undefined && cart?.total !== null
+      ? Number(cart.total)
+      : calculatedSubtotal;
+
   // Currency
-  const currency = items[0]?.price?.currency || items[0]?.product?.price?.currency || "INR";
+  const currency =
+    cart?.currency ||
+    items[0]?.itemPrice?.currency ||
+    items[0]?.price?.currency ||
+    items[0]?.product?.price?.currency ||
+    "INR";
 
   // Handle increasing quantity (+1)
   const handleIncreaseQty = async (item) => {
+    if (!authInitialized) return;
     if (!user) {
       triggerToast("Please sign in to update your cart");
       setTimeout(() => {
@@ -133,14 +172,17 @@ export default function Cart() {
 
     try {
       await handleAddToCart(prodId, varId, 1);
+      await handleGetCart().catch(() => {});
       triggerToast("Quantity updated (+1)");
     } catch (err) {
+      await handleGetCart().catch(() => {});
       triggerToast(err.message || "Failed to update quantity");
     }
   };
 
   // Handle removing item completely
   const handleRemoveItem = async (item) => {
+    if (!authInitialized) return;
     if (!user) {
       triggerToast("Please sign in to update your cart");
       setTimeout(() => {
@@ -155,13 +197,18 @@ export default function Cart() {
 
     try {
       await handleRemoveFromCart(itemId, prodId, varId);
+      await handleGetCart().catch(() => {});
       triggerToast("Item removed from cart");
     } catch (err) {
+      await handleGetCart().catch(() => {});
       triggerToast(err.message || "Failed to remove item");
     }
   };
 
-  const handleCheckout = () => {
+  const { Razorpay } = useRazorpay();
+
+  const handleCheckout = async () => {
+    if (!authInitialized) return;
     if (!user) {
       triggerToast("Please sign in to proceed with checkout");
       setTimeout(() => {
@@ -180,6 +227,35 @@ export default function Cart() {
       triggerToast("Your cart contains products you listed. Please remove them to checkout.");
       return;
     }
+
+    const order = await handleCreateOrder();
+    console.log(order);
+    
+
+    const options = {
+      key: "rzp_test_TZDO5rWnDPwBjC",
+      amount: order?.order?.amount,
+      currency: order?.order?.currency,
+      name: "Snitch",
+      description: "Snitch Payment",
+      order_id: order?.order?.orderId,
+      handler: (response) => {
+        console.log(response);
+        alert("Payment Successful!");
+      },
+      prefill: {
+        name: user?.fullName || user?.name || "Customer",
+        email: user?.email || "customer@example.com",
+        contact: user?.phone || "9999999999",
+      },
+      theme: {
+        color: "#F37254",
+      },
+    };
+
+    const razorpayInstance = new Razorpay(options);
+    razorpayInstance.open();
+
 
     triggerToast("Order placed successfully with Snitch!");
   };
@@ -234,7 +310,9 @@ export default function Cart() {
 
           {/* User Status */}
           <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-            {user ? (
+            {!authInitialized ? (
+              <div className="px-4 py-2 rounded-full bg-black/10 border-2 border-black font-mono text-xs animate-pulse w-24 h-8" />
+            ) : user ? (
               user.role === "seller" ? (
                 <Link
                   to="/seller/dashboard"
@@ -293,7 +371,7 @@ export default function Cart() {
                 <div className="flex items-center gap-3">
                   <h2 className="font-heading font-black text-2xl text-black">Cart Items</h2>
                   <span className="px-3 py-1 rounded-full bg-[#FFD600] border border-black font-mono text-xs font-black">
-                    {totalItems} {totalItems === 1 ? "Item" : "Items"}
+                    {items.length} {items.length === 1 ? "Item" : "Items"}
                   </span>
                 </div>
               </div>
@@ -336,16 +414,20 @@ export default function Cart() {
 
                     // Extract variant details if available
                     let variantLabel = null;
-                    if (item.variant !== undefined && item.variant !== null && Array.isArray(productObj.variants)) {
+                    if (productObj.variants && !Array.isArray(productObj.variants) && productObj.variants.attributes) {
+                      const attrs = productObj.variants.attributes instanceof Map ? Array.from(productObj.variants.attributes.entries()) : Object.entries(productObj.variants.attributes);
+                      variantLabel = attrs.map(([k, v]) => `${k}: ${v}`).join(" • ");
+                    } else if (item.variant !== undefined && item.variant !== null) {
+                      const variantsList = Array.isArray(productObj.variants) ? productObj.variants : (Array.isArray(productObj.allVariants) ? productObj.allVariants : []);
                       const targetVar = String(item.variant);
-                      let matchedV = productObj.variants.find((v, vIdx) =>
+                      let matchedV = variantsList.find((v, vIdx) =>
                         (v._id && String(v._id) === targetVar) ||
                         (v.id && String(v.id) === targetVar) ||
                         String(vIdx) === targetVar ||
                         targetVar === `variant-${vIdx}`
                       );
                       if (!matchedV && !isNaN(Number(targetVar))) {
-                        matchedV = productObj.variants[Number(targetVar)];
+                        matchedV = variantsList[Number(targetVar)];
                       }
                       if (matchedV?.attributes) {
                         const attrs = matchedV.attributes instanceof Map ? Array.from(matchedV.attributes.entries()) : Object.entries(matchedV.attributes);
@@ -426,7 +508,7 @@ export default function Cart() {
                           <div className="text-right min-w-[90px]">
                             <span className="text-[9px] font-mono font-bold text-black/60 block uppercase">ITEM TOTAL</span>
                             <span className="font-heading font-black text-lg sm:text-xl text-[#FF5500]">
-                              {priceCurr} {(priceAmount * (item.quantity || 1)).toLocaleString()}
+                              {priceCurr} {(item.itemPrice?.price !== undefined ? Number(item.itemPrice.price) : priceAmount * (item.quantity || 1)).toLocaleString()}
                             </span>
                           </div>
 

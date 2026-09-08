@@ -1,7 +1,8 @@
 import cartModel from "../models/cart.model.js";
+import mongoose from "mongoose";
 
 export async function getCartDetails(userId) {
-    const cart = await cartModel.aggregate([
+    const cart = (await cartModel.aggregate([
       {
         $match: {
           user: new mongoose.Types.ObjectId(userId),
@@ -80,6 +81,7 @@ export async function getCartDetails(userId) {
         $group: {
           _id: "$_id",
           total: { $sum: "$itemPrice.price" },
+          currency: { $first: "$itemPrice.currency" },
           items: {
             $push: {
               item: "$items",
@@ -88,6 +90,6 @@ export async function getCartDetails(userId) {
           },
         },
       },
-    ])
+    ]))[0];
     return cart;
 }
