@@ -23,7 +23,7 @@ export default function Cart() {
   useLenis();
   const navigate = useNavigate();
   const { user, initialized: authInitialized } = useSelector((state) => state.auth);
-  const { cart, isLoading, handleGetCart, handleAddToCart, handleRemoveFromCart, handleCreateOrder } = useCart();
+  const { cart, isLoading, handleGetCart, handleAddToCart, handleRemoveFromCart, handleCreateOrder, handlePaymentVerification } = useCart();
   const [toastMessage, setToastMessage] = useState(null);
 
   useEffect(() => {
@@ -269,9 +269,16 @@ export default function Cart() {
       name: "Snitch",
       description: "Snitch Payment",
       order_id: order?.order?.orderId,
-      handler: (response) => {
+      handler: async (response) => {
         console.log(response);
-        alert("Payment Successful!");
+        const verified = await handlePaymentVerification(response);
+        console.log(verified);
+        if(verified.success) {
+          triggerToast("Payment verified successfully");
+          navigate(`/order-success?order_id=${response.razorpay_order_id}`); 
+        } else {
+          triggerToast("Payment verification failed");
+        }
       },
       prefill: {
         name: user?.fullName || user?.name || "Customer",

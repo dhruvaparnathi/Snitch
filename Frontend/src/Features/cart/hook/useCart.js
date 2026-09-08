@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { addToCartAPI, removeFromCartAPI, getCartAPI, createOrderAPI } from "../service/cart.api";
+import { addToCartAPI, removeFromCartAPI, getCartAPI, createOrderAPI, paymentVerificationAPI } from "../service/cart.api";
 import { setCart, setLoading, setError } from "../state/cart.slice";
 
 export const useCart = () => {
@@ -72,6 +72,14 @@ export const useCart = () => {
         }
     };
 
+    const handlePaymentVerification = async (response) => {
+        dispatch(setLoading(true));
+        const verified = await paymentVerificationAPI(response);
+        dispatch(setCart(null));
+        dispatch(setLoading(false));
+        return verified;
+    };
+
     return {
         cart,
         cartItems,
@@ -81,6 +89,7 @@ export const useCart = () => {
         handleAddToCart,
         handleRemoveFromCart,
         handleGetCart,
-        handleCreateOrder
+        handleCreateOrder,
+        handlePaymentVerification
     };
 };

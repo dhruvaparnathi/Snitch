@@ -3,6 +3,9 @@ import productModel from "../models/product.model.js";
 import { stockOfVariant } from "../dao/product.dao.js";
 import { getCartDetails } from "../dao/cart.dao.js";
 import { createOrder } from "../services/payment.service.js";
+import paymentModel from "../models/payment.model.js";
+import { validatePaymentVerification } from 'razorpay/dist/utils/razorpay-utils.js';
+import { config } from "dotenv";
 
 export const addToCartController = async (req, res) => {
     try {
@@ -182,10 +185,91 @@ export const createCartOrderController = async (req, res) => {
         return res.status(400).json({ message: "Cart is empty", success: false });
     }
 
-    const data = await createOrder({
+    const orderData = await createOrder({
         amount: cart.total,
         currency: "INR",
     });
 
-    return res.status(200).json({ message: "Order created successfully", success: true, order: data });
+    const payment = await paymentModel.create({
+        status: "pending",
+        user: req.user._id,
+        razorpay: {
+            orderId: orderData.id,
+        },
+        price: {
+            amount: cart.total,
+            currency: cart.currency,
+        },
+        orderItems: cart.items.map((item) => {
+            return {
+                title: item.item.product.title,
+                productId: item.item.product._id,
+                variant: item.item.variant,
+                quantity: item.item.quantity,
+                images: item.item.product.images,
+                price: {
+                    amount: item.item.price.amount,
+                    currency: item.item.price.currency,
+                },
+            };
+        }),
+    });
+
+    return res.status(200).json({ message: "Order created successfully", success: true, order: orderData, payment });
 };
+
+export const verifyCartOrderController = async (req, res) => {
+    const {
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+    } = req.body;
+
+    const payment = await paymentModel.findOne({
+        'razorpay.orderId': razorpay_order_id,
+        status: "pending",
+    });
+    
+
+    if (!payment) {
+        return res.status(400).json({ message: "Payment details not found", success: false });
+    }
+
+    const isPaymentValid = validatePaymentVerification({
+        payment_id: razorpay_payment_id,
+        order_id: razorpay_order_id,
+    }, razorpay_signature, config.RAZORPAY_KEY_SECRET);
+
+    if (!isPaymentValid) {
+        payment.status = "failed";
+        await payment.save();
+        return res.status(400).json({ message: "Invalid payment signature", success: false });
+    }
+
+    payment.status = "paid";
+    payment.razorpay.paymentId = razorpay_payment_id;
+    payment.razorpay.signature = razorpay_signature;
+    await payment.save();
+
+    //remove 1 from stock of each product in payment.orderItems
+    payment.orderItems.forEach(async (item) => {
+        const product = await productModel.findById(item.item.productId);
+        if (item.item.variant) {
+            const variant = await variantModel.findById(item.item.variant);
+            if (variant) {
+                variant.stock -= item.item.quantity;
+                await variant.save();
+            }
+        } else {
+            product.stock -= item.item.quantity;
+            if (product.stock < 0) {
+                product.stock = 0;
+            }
+            await product.save();
+        }
+    });
+
+    const cart = await cartModel.findOneAndDelete({ user: req.user._id });
+
+    return res.status(200).json({ message: "Payment verified successfully", success: true, payment });
+}
