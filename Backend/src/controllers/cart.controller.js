@@ -186,6 +186,6 @@ export const createCartOrderController = async (req, res) => {
         amount: cart.total,
         currency: "INR",
     });
-    
+
     return res.status(200).json({ message: "Order created successfully", success: true, order: data });
 };

@@ -9,7 +9,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   Lock,
-  LayoutDashboard
+  LayoutDashboard,
+  Minus
 } from "lucide-react";
 import { useLenis } from "../../../assets/useLenis";
 import { useCart } from "../hook/useCart";
@@ -174,6 +175,35 @@ export default function Cart() {
       await handleAddToCart(prodId, varId, 1);
       await handleGetCart().catch(() => {});
       triggerToast("Quantity updated (+1)");
+    } catch (err) {
+      await handleGetCart().catch(() => {});
+      triggerToast(err.message || "Failed to update quantity");
+    }
+  };
+
+  // decrease quantity
+  const handleDecreaseQty = async (item) => {
+    if (!authInitialized) return;
+    if (!user) {
+      triggerToast("Please sign in to update your cart");
+      setTimeout(() => {
+        navigate(`/login?redirect=${encodeURIComponent("/cart")}`);
+      }, 700);
+      return;
+    }
+
+    const prodId = item.product?._id || item.product?.id || item.product;
+    const varId = item.variant?._id || item.variant?.id || item.variant || "default";
+
+    if (!prodId) {
+      triggerToast("Missing product info");
+      return;
+    }
+
+    try {
+      await handleAddToCart(prodId, varId, -1);
+      await handleGetCart().catch(() => {});
+      triggerToast("Quantity updated (-1)");
     } catch (err) {
       await handleGetCart().catch(() => {});
       triggerToast(err.message || "Failed to update quantity");
@@ -493,6 +523,14 @@ export default function Cart() {
                           {/* Quantity Box with Add Stepper */}
                           <div className="flex items-center gap-2 bg-white border-2 border-black rounded-full px-3 py-1.5 shadow-[2px_2px_0px_#000000]">
                             <span className="font-mono text-xs font-bold text-black/70 pl-1">Qty:</span>
+                            <button
+                              onClick={() => handleDecreaseQty(item)}
+                              disabled={isLoading || (item.quantity || 1) === 1}
+                              className="p-1 hover:text-[#FF5500] transition-colors cursor-pointer disabled:opacity-40"
+                              title="Remove one"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
                             <span className="font-mono font-black text-sm px-1 text-center">{item.quantity || 1}</span>
                             <button
                               onClick={() => handleIncreaseQty(item)}

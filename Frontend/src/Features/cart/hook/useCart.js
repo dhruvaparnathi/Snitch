@@ -11,7 +11,7 @@ export const useCart = () => {
     const isLoading = useSelector((state) => state.cart.isLoading);
     const error = useSelector((state) => state.cart.error);
 
-    const handleAddToCart = async (productId, variantId = "default", quantity = 1) => {
+    const handleAddToCart = async (productId, variantId = "default", quantity) => {
         try {
             dispatch(setLoading(true));
             const response = await addToCartAPI(productId, variantId, quantity);
