@@ -4,7 +4,7 @@ import priceSchema from "./price.schema.js";
 const paymentSchema = new mongoose.Schema({
     status: {
         type: String,
-        enum: ["pending","completed", "failed"],
+        enum: ["pending","paid", "failed"],
         required: true,
     },
     price: {

@@ -1,11 +1,12 @@
 import cartModel from "../models/cart.model.js";
 import productModel from "../models/product.model.js";
+import mongoose from "mongoose";
 import { stockOfVariant } from "../dao/product.dao.js";
 import { getCartDetails } from "../dao/cart.dao.js";
 import { createOrder } from "../services/payment.service.js";
 import paymentModel from "../models/payment.model.js";
 import { validatePaymentVerification } from 'razorpay/dist/utils/razorpay-utils.js';
-import { config } from "dotenv";
+import config from "../config/config.js";
 
 export const addToCartController = async (req, res) => {
     try {
@@ -201,9 +202,11 @@ export const createCartOrderController = async (req, res) => {
             currency: cart.currency,
         },
         orderItems: cart.items.map((item) => {
+            const validVariantId = (item.item.variant && mongoose.Types.ObjectId.isValid(item.item.variant)) ? item.item.variant : undefined;
             return {
                 title: item.item.product.title,
                 productId: item.item.product._id,
+                variantId: validVariantId,
                 variant: item.item.variant,
                 quantity: item.item.quantity,
                 images: item.item.product.images,
@@ -251,23 +254,35 @@ export const verifyCartOrderController = async (req, res) => {
     payment.razorpay.signature = razorpay_signature;
     await payment.save();
 
-    //remove 1 from stock of each product in payment.orderItems
-    payment.orderItems.forEach(async (item) => {
-        const product = await productModel.findById(item.item.productId);
-        if (item.item.variant) {
-            const variant = await variantModel.findById(item.item.variant);
+    // Reduce stock for each product/variant in payment.orderItems
+    for (const item of payment.orderItems) {
+        const prodId = item.productId || item._id;
+        const product = await productModel.findById(prodId);
+        if (!product) continue;
+
+        const qty = Number(item.quantity) || 1;
+        const varId = item.variantId || item.variant;
+
+        if (varId && Array.isArray(product.variants) && product.variants.length > 0) {
+            const targetVar = String(varId);
+            let variant = null;
+            if (mongoose.Types.ObjectId.isValid(varId) && typeof product.variants.id === "function") {
+                try {
+                    variant = product.variants.id(varId);
+                } catch (e) {}
+            }
+            if (!variant) {
+                variant = product.variants.find((v, idx) => (v._id && String(v._id) === targetVar) || (v.id && String(v.id) === targetVar) || String(idx) === targetVar);
+            }
+
             if (variant) {
-                variant.stock -= item.item.quantity;
-                await variant.save();
+                variant.stock = Math.max(0, (variant.stock || 0) - qty);
             }
-        } else {
-            product.stock -= item.item.quantity;
-            if (product.stock < 0) {
-                product.stock = 0;
-            }
-            await product.save();
         }
-    });
+
+        product.stock = Math.max(0, (product.stock || 0) - qty);
+        await product.save();
+    }
 
     const cart = await cartModel.findOneAndDelete({ user: req.user._id });
 

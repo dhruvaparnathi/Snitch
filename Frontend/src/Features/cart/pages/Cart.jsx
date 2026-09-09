@@ -268,7 +268,7 @@ export default function Cart() {
       currency: order?.order?.currency,
       name: "Snitch",
       description: "Snitch Payment",
-      order_id: order?.order?.orderId,
+      order_id: order?.order?.id,
       handler: async (response) => {
         console.log(response);
         const verified = await handlePaymentVerification(response);
