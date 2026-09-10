@@ -28,3 +28,8 @@ export const meApi = async () => {
     const response = await authApiInstance.get("/me");
     return response.data;
 };
+
+export const logoutApi = async () => {
+    const response = await authApiInstance.post("/logout");
+    return response.data;
+};

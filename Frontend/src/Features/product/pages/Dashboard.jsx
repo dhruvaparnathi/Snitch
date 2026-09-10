@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import {
   LayoutDashboard,
@@ -17,17 +17,21 @@ import {
   Globe,
   Eye,
   AlertTriangle,
-  X
+  X,
+  LogOut
 } from "lucide-react";
 import { useLenis } from "../../../assets/useLenis";
 import { useProduct } from "../hook/useProduct";
+import { useAuth } from "../../auth/hook/useAuth";
 import gsap from "gsap";
 import SellerLoader from "../../../Components/loaders/SellerLoader.jsx";
 import { TableRowSkeleton } from "../../../Components/loaders/BentoSkeleton.jsx";
 
 export default function Dashboard() {
   useLenis();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+  const { handleLogout } = useAuth();
   const { products, loading, handleGetSellerProducts, handleDeleteProduct } = useProduct();
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState(null);
@@ -178,10 +182,22 @@ export default function Dashboard() {
               handleGetSellerProducts();
               triggerToast("Live catalog refreshed!");
             }}
-            className="units-pill bg-[#FFB800] text-black font-mono font-bold p-3 rounded-2xl flex items-center justify-between text-xs border-2 border-black shadow-[2px_2px_0px_#000000]"
+            className="units-pill bg-[#FFB800] text-black font-mono font-bold p-3 rounded-2xl flex items-center justify-between text-xs border-2 border-black shadow-[2px_2px_0px_#000000] cursor-pointer"
           >
             <span>REFRESH</span>
             <RefreshCw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={async () => {
+              await handleLogout();
+              navigate("/");
+            }}
+            className="units-pill bg-[#FF3B30] text-white font-heading font-extrabold p-3 rounded-2xl flex items-center justify-between text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:bg-black transition-colors cursor-pointer"
+            title="Sign out securely"
+          >
+            <span>SIGN OUT</span>
+            <LogOut className="w-4 h-4" />
           </button>
         </aside>
 

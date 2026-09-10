@@ -21,7 +21,8 @@ import {
   Package,
   Layers,
   PlusCircle,
-  ReceiptText
+  ReceiptText,
+  LogOut
 } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Autoplay } from "swiper/modules";
@@ -33,6 +34,7 @@ import BuyerLoader from "../Components/loaders/BuyerLoader.jsx";
 import { CardSkeleton } from "../Components/loaders/BentoSkeleton.jsx";
 import PixelArtCanvas from "../Components/common/PixelArtCanvas.jsx";
 import { useCart } from "../Features/cart/hook/useCart";
+import { useAuth } from "../Features/auth/hook/useAuth";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -42,6 +44,7 @@ export default function App() {
   useLenis();
   const navigate = useNavigate();
   const { user, initialized } = useSelector((state) => state.auth);
+  const { handleLogout } = useAuth();
   const { products: apiProducts, loading: productsLoading, handleGetAllProducts } = useProduct();
   const { totalItems, handleAddToCart: addProductToCart } = useCart();
 
@@ -344,6 +347,17 @@ export default function App() {
               <div className="bg-white border-2 border-black p-2 rounded-2xl text-center text-[11px] font-mono font-bold truncate">
                 {user.fullName || user.email}
               </div>
+              <button
+                onClick={async () => {
+                  await handleLogout();
+                  triggerToast("Signed out securely");
+                }}
+                className="units-pill bg-[#FF3B30] text-white font-heading font-extrabold p-2 rounded-2xl text-xs flex items-center justify-center gap-1.5 border-2 border-black text-center shadow-[2px_2px_0px_#000000] hover:bg-black transition-colors cursor-pointer"
+                title="Sign out securely"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>SIGN OUT</span>
+              </button>
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">

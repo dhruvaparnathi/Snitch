@@ -84,6 +84,52 @@ export const loginController = async (req, res, next) => {
     }
 }
 
+export const logoutController = async (req, res, next) => {
+    try {
+        // 1. Clear the auth cookie with matching cross-site attributes
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+            path: "/",
+        });
+
+        // 2. Extra fail-safe: overwrite with immediately expired epoch cookie
+        res.cookie("token", "", {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+            path: "/",
+            expires: new Date(0),
+        });
+
+        // 3. Clean up Passport OAuth session if active
+        if (req.logout && typeof req.logout === "function") {
+            req.logout((err) => {
+                if (err) console.error("Passport logout error:", err);
+            });
+        }
+        if (req.session && typeof req.session.destroy === "function") {
+            req.session.destroy();
+        }
+
+        // 4. Set strict anti-caching security headers to prevent browser back-button cache leaks
+        res.set({
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "Surrogate-Control": "no-store"
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Logged out successfully"
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 export const googleCallbackController = async (req, res, next) => {
     try {
         const targetOrigin = req.query.state || config.FRONTEND_URL || process.env.FRONTEND_URL || "http://localhost:5173";

@@ -2,7 +2,7 @@ import express from "express";
 import passport from "passport";
 import { validate } from "../validators/validate.js";
 import { registerValidation, loginValidation } from "../validators/auth.validator.js";
-import { getMeController, registerController, loginController, googleCallbackController } from "../controllers/auth.controller.js";
+import { getMeController, registerController, loginController, logoutController, googleCallbackController } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import config from "../config/config.js";
 const authRoute = express.Router();
@@ -11,6 +11,8 @@ const authRoute = express.Router();
 authRoute.get('/me', getMeController);
 authRoute.post("/register", registerValidation, validate, registerController);
 authRoute.post("/login", loginValidation, validate, loginController);
+authRoute.post("/logout", logoutController);
+authRoute.get("/logout", logoutController);
 
 // Google OAuth routes
 authRoute.get("/google", (req, res, next) => {

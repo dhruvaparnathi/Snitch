@@ -1,6 +1,7 @@
 import { useDispatch } from "react-redux";
-import { registerApi, loginApi, meApi } from "../service/auth.api";
+import { registerApi, loginApi, meApi, logoutApi } from "../service/auth.api";
 import { setUser, setLoading, setInitialized, setError } from "../state/auth.slice";
+import { setCart } from "../../cart/state/cart.slice";
 
 export const useAuth = () => {
     const dispatch = useDispatch();
@@ -57,10 +58,26 @@ export const useAuth = () => {
         }
     }
 
+    const handleLogout = async () => {
+        try {
+            dispatch(setLoading(true));
+            await logoutApi().catch(() => {});
+        } finally {
+            // Enterprise-grade cleanup: clear all credentials and cached session stores
+            dispatch(setUser(null));
+            dispatch(setCart(null));
+            dispatch(setError(null));
+            dispatch(setInitialized(true));
+            sessionStorage.clear();
+            dispatch(setLoading(false));
+        }
+    }
+
     return {
         handleRegister,
         handleLogin,
         handleGoogleAuth,
-        handleMe
+        handleMe,
+        handleLogout
     }
 }
