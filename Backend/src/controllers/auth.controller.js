@@ -7,8 +7,8 @@ export const generateToken = (req, res, userId, userRole) => {
     const tokenResponse = jwt.sign({ _id: userId, role: userRole }, config.JWT_SECRET, { expiresIn: "7d" });
     res.cookie("token", tokenResponse, {
         httpOnly: true,
-        secure: config.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: true,
+        sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     return tokenResponse;
@@ -86,13 +86,13 @@ export const loginController = async (req, res, next) => {
 
 export const googleCallbackController = async (req, res, next) => {
     try {
+        const frontendUrl = config.FRONTEND_URL || process.env.FRONTEND_URL || "http://localhost:5173";
         if (!req.user) {
-            return res.redirect("http://localhost:5174/login?error=GoogleAuthFailed");
+            return res.redirect(`${frontendUrl}/login?error=GoogleAuthFailed`);
         }
         generateToken(req, res, req.user._id, req.user.role);
 
         // Redirect user back to Frontend after successful Google login
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5174";
         return res.redirect(`${frontendUrl}/`);
     } catch (error) {
         next(error);

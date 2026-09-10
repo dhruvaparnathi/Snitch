@@ -35,8 +35,9 @@ export const useAuth = () => {
         }
     }
 
+    const apiUrl = import.meta.env.VITE_API_URL || "";
     const handleGoogleAuth = () => {
-        window.location.href = "/api/auth/google";
+        window.location.href = `${apiUrl}/api/auth/google`;
     }
 
     const handleMe = async () => {
