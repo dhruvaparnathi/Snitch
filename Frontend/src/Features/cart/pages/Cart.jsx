@@ -264,7 +264,7 @@ export default function Cart() {
     
 
     const options = {
-      key: "rzp_test_TZDO5rWnDPwBjC",
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
       amount: order?.order?.amount,
       currency: order?.order?.currency,
       name: "Snitch",
