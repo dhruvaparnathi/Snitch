@@ -86,14 +86,15 @@ export const loginController = async (req, res, next) => {
 
 export const googleCallbackController = async (req, res, next) => {
     try {
-        const frontendUrl = config.FRONTEND_URL || process.env.FRONTEND_URL || "http://localhost:5173";
+        const targetOrigin = req.query.state || config.FRONTEND_URL || process.env.FRONTEND_URL || "http://localhost:5173";
+        const cleanFrontendUrl = String(targetOrigin).replace(/\/$/, '');
         if (!req.user) {
-            return res.redirect(`${frontendUrl}/login?error=GoogleAuthFailed`);
+            return res.redirect(`${cleanFrontendUrl}/login?error=GoogleAuthFailed`);
         }
         generateToken(req, res, req.user._id, req.user.role);
 
         // Redirect user back to Frontend after successful Google login
-        return res.redirect(`${frontendUrl}/`);
+        return res.redirect(`${cleanFrontendUrl}/`);
     } catch (error) {
         next(error);
     }

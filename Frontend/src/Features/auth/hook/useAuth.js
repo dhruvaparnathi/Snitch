@@ -35,9 +35,10 @@ export const useAuth = () => {
         }
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const apiUrl = import.meta.env.VITE_API_URL || "https://snitch-i93v.onrender.com";
     const handleGoogleAuth = () => {
-        window.location.href = `${apiUrl}/api/auth/google`;
+        const returnTo = window.location.origin;
+        window.location.href = `${apiUrl}/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
     }
 
     const handleMe = async () => {

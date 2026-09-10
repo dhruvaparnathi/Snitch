@@ -29,10 +29,26 @@ app.use(cors({
 // Passport Setup
 app.use(passport.initialize());
 
+const getGoogleCallbackURL = () => {
+    if (process.env.RENDER_EXTERNAL_URL) {
+        return `${process.env.RENDER_EXTERNAL_URL}/api/auth/google/callback`;
+    }
+    if (process.env.GOOGLE_CALLBACK_URL) {
+        if ((process.env.NODE_ENV === "production" || process.env.RENDER) && process.env.GOOGLE_CALLBACK_URL.includes("localhost")) {
+            return "https://snitch-i93v.onrender.com/api/auth/google/callback";
+        }
+        return process.env.GOOGLE_CALLBACK_URL;
+    }
+    if (process.env.NODE_ENV === "production" || process.env.RENDER) {
+        return "https://snitch-i93v.onrender.com/api/auth/google/callback";
+    }
+    return "/api/auth/google/callback";
+};
+
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID || "GOOGLE_CLIENT_ID_PLACEHOLDER",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "GOOGLE_CLIENT_SECRET_PLACEHOLDER",
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || "/api/auth/google/callback",
+    callbackURL: getGoogleCallbackURL(),
 }, async (accessToken, refreshToken, profile, done) => {
     try {
         const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
