@@ -10,7 +10,8 @@ import {
   CheckCircle2,
   Lock,
   LayoutDashboard,
-  Minus
+  Minus,
+  ReceiptText
 } from "lucide-react";
 import { useLenis } from "../../../assets/useLenis";
 import { useCart } from "../hook/useCart";
@@ -275,7 +276,13 @@ export default function Cart() {
         console.log(verified);
         if(verified.success) {
           triggerToast("Payment verified successfully");
-          navigate(`/order-success?order_id=${response.razorpay_order_id}`); 
+          navigate(`/order-success?order_id=${response.razorpay_order_id}`, {
+            state: {
+              payment: verified.payment,
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id
+            }
+          }); 
         } else {
           triggerToast("Payment verification failed");
         }
@@ -329,6 +336,14 @@ export default function Cart() {
             >
               <ArrowLeft className="w-4 h-4" />
               <span>STOREFRONT</span>
+            </Link>
+
+            <Link
+              to="/orders"
+              className="px-4 py-2 rounded-full bg-white text-black font-heading font-extrabold text-xs border-2 border-black hover:bg-black hover:text-white transition-all flex items-center gap-2 cursor-pointer shadow-[2px_2px_0px_#000000]"
+            >
+              <ReceiptText className="w-4 h-4" />
+              <span>ORDERS</span>
             </Link>
           </div>
 

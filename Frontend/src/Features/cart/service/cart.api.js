@@ -48,3 +48,13 @@ export const paymentVerificationAPI = async (response) => {
     });
     return verificationResponse.data;
 };
+
+export const getOrderDetailsAPI = async (orderId) => {
+    const response = await cartApiInstance.get(`/order/${orderId}`);
+    return response.data;
+};
+
+export const getUserOrdersAPI = async () => {
+    const response = await cartApiInstance.get("/orders");
+    return response.data;
+};

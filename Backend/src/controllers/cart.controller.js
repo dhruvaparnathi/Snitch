@@ -203,13 +203,24 @@ export const createCartOrderController = async (req, res) => {
         },
         orderItems: cart.items.map((item) => {
             const validVariantId = (item.item.variant && mongoose.Types.ObjectId.isValid(item.item.variant)) ? item.item.variant : undefined;
+
+            let itemImages = item.item.product.images || item.item.product.Images || [];
+            const matchedVariant = item.item.product.variants;
+            if (validVariantId && matchedVariant) {
+                if (Array.isArray(matchedVariant.images) && matchedVariant.images.length > 0) {
+                    itemImages = matchedVariant.images;
+                } else if (Array.isArray(matchedVariant.Images) && matchedVariant.Images.length > 0) {
+                    itemImages = matchedVariant.Images;
+                }
+            }
+
             return {
                 title: item.item.product.title,
                 productId: item.item.product._id,
                 variantId: validVariantId,
                 variant: item.item.variant,
                 quantity: item.item.quantity,
-                images: item.item.product.images,
+                images: itemImages,
                 price: {
                     amount: item.item.price.amount,
                     currency: item.item.price.currency,
@@ -287,4 +298,53 @@ export const verifyCartOrderController = async (req, res) => {
     const cart = await cartModel.findOneAndDelete({ user: req.user._id });
 
     return res.status(200).json({ message: "Payment verified successfully", success: true, payment });
-}
+};
+
+export const getOrderDetailsController = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        if (!orderId) {
+            return res.status(400).json({ message: "Order ID is required", success: false });
+        }
+
+        const isObjectId = mongoose.Types.ObjectId.isValid(orderId);
+        const queryConditions = [{ 'razorpay.orderId': orderId }];
+        if (isObjectId) {
+            queryConditions.push({ _id: orderId });
+        }
+
+        const payment = await paymentModel.findOne({
+            $or: queryConditions,
+            user: req.user._id,
+        }).populate("orderItems.productId");
+
+        if (!payment) {
+            return res.status(404).json({ message: "Order not found", success: false });
+        }
+
+        return res.status(200).json({ message: "Order details fetched successfully", success: true, order: payment });
+    } catch (err) {
+        return res.status(500).json({ message: err.message || "Failed to fetch order details", success: false });
+    }
+};
+
+export const getUserOrdersController = async (req, res) => {
+    try {
+        const orders = await paymentModel.find({
+            user: req.user._id,
+        })
+        .populate("orderItems.productId")
+        .sort({ createdAt: -1, _id: -1 });
+
+        return res.status(200).json({
+            message: "User orders fetched successfully",
+            success: true,
+            orders,
+        });
+    } catch (err) {
+        return res.status(500).json({
+            message: err.message || "Failed to fetch orders",
+            success: false,
+        });
+    }
+};

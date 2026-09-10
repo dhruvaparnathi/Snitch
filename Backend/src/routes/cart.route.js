@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { addToCartController, createCartOrderController, getCartController, removeFromCartController,verifyCartOrderController } from "../controllers/cart.controller.js";
+import { addToCartController, createCartOrderController, getCartController, removeFromCartController, verifyCartOrderController, getOrderDetailsController, getUserOrdersController } from "../controllers/cart.controller.js";
 
 const cartRouter = express.Router();
 
@@ -13,5 +13,7 @@ cartRouter.get("/", authMiddleware, getCartController);
 
 cartRouter.post("/payment/order/create", authMiddleware, createCartOrderController);
 cartRouter.post("/payment/order/verify", authMiddleware, verifyCartOrderController);
+cartRouter.get("/orders", authMiddleware, getUserOrdersController);
+cartRouter.get("/order/:orderId", authMiddleware, getOrderDetailsController);
 
 export default cartRouter;

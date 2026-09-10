@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   Package,
   Layers,
-  PlusCircle
+  PlusCircle,
+  ReceiptText
 } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Autoplay } from "swiper/modules";
@@ -301,6 +302,15 @@ export default function App() {
             )}
           </Link>
 
+          {/* Order History Yellow Pill */}
+          <Link
+            to="/orders"
+            className="units-pill bg-[#FFD600] text-black font-heading font-black p-3.5 rounded-2xl text-center text-sm border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center justify-center gap-2 cursor-pointer hover:bg-black hover:text-white transition-colors"
+          >
+            <ReceiptText className="w-4 h-4" />
+            <span>Order History</span>
+          </Link>
+
           {/* Language Toggle Black Pill */}
           <button
             onClick={() => setLang(lang === "EN" ? "EL" : "EN")}
@@ -314,19 +324,27 @@ export default function App() {
           {!initialized ? (
             <div className="bg-black/10 border-2 border-black p-2.5 rounded-2xl animate-pulse h-10" />
           ) : user ? (
-            user.role === "seller" ? (
+            <div className="flex flex-col gap-1.5">
+              {user.role === "seller" && (
+                <Link
+                  to="/seller/dashboard"
+                  className="units-pill bg-[#FFD600] text-black font-heading font-extrabold p-2.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 border-2 border-black text-center shadow-[2px_2px_0px_#000000]"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>SELLER TERMINAL</span>
+                </Link>
+              )}
               <Link
-                to="/seller/dashboard"
-                className="units-pill bg-[#FFD600] text-black font-heading font-extrabold p-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 border-2 border-black text-center shadow-[2px_2px_0px_#000000]"
+                to="/orders"
+                className="units-pill bg-[#00C853] text-black font-heading font-extrabold p-2.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 border-2 border-black text-center shadow-[2px_2px_0px_#000000] hover:bg-black hover:text-white transition-colors"
               >
-                <LayoutDashboard className="w-4 h-4" />
-                <span>SELLER TERMINAL</span>
+                <ReceiptText className="w-3.5 h-3.5" />
+                <span>MY ORDERS</span>
               </Link>
-            ) : (
-              <div className="bg-white border-2 border-black p-2.5 rounded-2xl text-center text-xs font-mono font-bold truncate">
+              <div className="bg-white border-2 border-black p-2 rounded-2xl text-center text-[11px] font-mono font-bold truncate">
                 {user.fullName || user.email}
               </div>
-            )
+            </div>
           ) : (
             <div className="flex flex-col gap-1.5">
               <Link
@@ -508,16 +526,26 @@ export default function App() {
                 </h2>
               </div>
 
-              {/* Search Box */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-black absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search user products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2.5 units-input text-xs font-mono w-full sm:w-64"
-                />
+              {/* Search Box & Orders Quick Button */}
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/orders"
+                  className="hidden sm:flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white text-black font-heading font-extrabold text-xs border-2 border-black shadow-[2px_2px_0px_#000000] hover:bg-black hover:text-white transition-all cursor-pointer"
+                >
+                  <ReceiptText className="w-4 h-4" />
+                  <span>ORDERS</span>
+                </Link>
+
+                <div className="relative">
+                  <Search className="w-4 h-4 text-black absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search user products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-4 py-2.5 units-input text-xs font-mono w-full sm:w-64"
+                  />
+                </div>
               </div>
             </div>
 

@@ -8,6 +8,8 @@ import Protected from "../Features/auth/pages/Protected.jsx";
 import CreateProduct from "../Features/product/pages/CreateProduct.jsx";
 import EditProduct from "../Features/product/pages/EditProduct.jsx";
 import Cart from "../Features/cart/pages/Cart.jsx";
+import OrderSuccess from "../Features/cart/pages/OrderSuccess.jsx";
+import OrderHistory from "../Features/cart/pages/OrderHistory.jsx";
 
 import RootLayout from "../Components/common/RootLayout.jsx";
 
@@ -22,6 +24,18 @@ export const routes = createBrowserRouter([
       {
         path: "/cart",
         element: <Cart />,
+      },
+      {
+        path: "/order-success",
+        element: <OrderSuccess />,
+      },
+      {
+        path: "/orders",
+        element: <OrderHistory />,
+      },
+      {
+        path: "/order-history",
+        element: <OrderHistory />,
       },
       {
         path: "/product/:id",
