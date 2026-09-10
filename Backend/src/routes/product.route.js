@@ -28,7 +28,9 @@ productRoute.post("/seller/update/:id", authenticateSeller, upload.any(), update
 
 productRoute.delete("/seller/delete/:id", authenticateSeller, deleteProductController);
 
-productRoute.get("/seller", authenticateSeller, getAllProductController);
+// Public products catalog
+productRoute.get("/", getAllProductController);
+productRoute.get("/seller", getAllProductController);
 
 productRoute.get("/seller/myshop", authenticateSeller, getSellerProductsController);
 
