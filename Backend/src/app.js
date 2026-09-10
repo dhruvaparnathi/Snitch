@@ -16,13 +16,27 @@ if (config.NODE_ENV === "development") {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://snitch-cart.vercel.app",
+    config.FRONTEND_URL,
+    process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(cors({
-    origin: [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        config.FRONTEND_URL,
-        process.env.FRONTEND_URL,
-    ].filter(Boolean),
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (
+            allowedOrigins.includes(origin) ||
+            origin.endsWith(".vercel.app") ||
+            /^https:\/\/.*\.vercel\.app$/.test(origin) ||
+            origin.includes("localhost")
+        ) {
+            return callback(null, true);
+        }
+        return callback(null, false);
+    },
     credentials: true,
 }));
 
